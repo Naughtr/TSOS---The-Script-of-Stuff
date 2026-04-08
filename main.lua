@@ -1,7 +1,4 @@
---!strict
--- Configuration
 local CONFIG = {
-    -- Keybinds
     SPEED_1_KEY = Enum.KeyCode.X,
     SPEED_2_KEY = Enum.KeyCode.C,
     LAG_SWITCH_KEY = Enum.KeyCode.V,
@@ -13,9 +10,8 @@ local CONFIG = {
     SPEEDOMETER_KEY = Enum.KeyCode.U,
     ZOOM_KEY = Enum.KeyCode.Z,
     WARNING_KEY = Enum.KeyCode.J, 
-    CUSTOM_ESP_KEY = Enum.KeyCode.K, -- Added
+    CUSTOM_ESP_KEY = Enum.KeyCode.K,
 
-    -- Speeds & Powers
     BOOSTED_SPEED_1 = 21,
     BOOSTED_SPEED_2 = 17, 
     DEFAULT_JUMP = 50,
@@ -25,13 +21,10 @@ local CONFIG = {
     MIN_ZOOM = 0,
     WARNING_DISTANCE = 100, 
 
-    -- Invisibility Settings
     INVISIBILITY_POSITION = Vector3.new(-25.95, 84, 3537.55),
     
-    -- Reset Settings
     RESET_COOLDOWN = 5,
     
-    -- UI Colors
     BACKGROUND_COLOR = Color3.fromRGB(25, 25, 25),
     ACCENT_COLOR = Color3.fromRGB(45, 45, 45),
     TAB_COLOR = Color3.fromRGB(40, 40, 40),
@@ -40,12 +33,10 @@ local CONFIG = {
     TEXT_COLOR = Color3.fromRGB(255, 255, 255),
     SECONDARY_TEXT_COLOR = Color3.fromRGB(189, 195, 199),
     
-    -- ESP Settings
     ESP_MAX_DISTANCE = math.huge, 
     ESP_NEAR_DISTANCE = 1000, 
 }
 
--- Types
 type ActiveBoostType = "None" | "Boost1" | "Boost2"
 type PlayerState = {
     activeBoost: ActiveBoostType,
@@ -59,13 +50,12 @@ type PlayerState = {
     isSpeedometerActive: boolean,
     isZoomActive: boolean,
     isWarningActive: boolean, 
-    isCustomEspActive: boolean, -- Added
-    customEspKeyword: string,   -- Added
+    isCustomEspActive: boolean, 
+    customEspKeyword: string,   
     espMode: number, 
     originalSpeed: number,
 }
 
--- Services
 local Players = game:GetService("Players")
 local UserInputService = game:GetService("UserInputService")
 local Lighting = game:GetService("Lighting")
@@ -75,7 +65,6 @@ local StarterGui = game:GetService("StarterGui")
 local TweenService = game:GetService("TweenService") 
 local ProximityPromptService = game:GetService("ProximityPromptService")
 
--- Variables
 local player = Players.LocalPlayer
 local playerState: PlayerState = {
     activeBoost = "None",
@@ -89,10 +78,10 @@ local playerState: PlayerState = {
     isSpeedometerActive = false,
     isZoomActive = false,
     isWarningActive = false, 
-    isCustomEspActive = false, -- Added
-    customEspKeyword = "",     -- Added
+    isCustomEspActive = false, 
+    customEspKeyword = "",     
     espMode = 0, 
-    originalSpeed = 16, -- Default placeholder, will be updated on init
+    originalSpeed = 16, 
 }
 
 local lagSwitchIndicatorPart: Part? = nil
@@ -104,7 +93,6 @@ local hasShownMinimizeNotice = false
 local warningGui: BillboardGui? = nil 
 local isConfigMenuOpen: boolean = false 
 
--- ESP Variables
 local espConnections: {RBXScriptConnection} = {}
 local espHighlights: {[Player]: Highlight} = {}
 local espNametags: {[Player]: BillboardGui} = {} 
@@ -112,23 +100,21 @@ local espOffScreenText: {[Player]: TextLabel} = {}
 local teamColors: {[Team]: Color3} = {} 
 local espUpdateConnection: RBXScriptConnection? = nil
 
--- Custom ESP Variables Added
 local customEspHighlights: {Highlight} = {}
 local customEspConnection: RBXScriptConnection? = nil
 
--- GUI Elements
 local screenGui: ScreenGui
 local mainFrame: Frame
-local titleTabBg: Frame -- Moved to global for positioning
+local titleTabBg: Frame 
 local minimizedFrame: Frame 
 local confirmFrame: Frame 
-local inputFrame: Frame -- Added
-local inputBox: TextBox -- Added
-local submitSearchButton: TextButton -- Added
-local cancelSearchButton: TextButton -- Added
+local inputFrame: Frame 
+local inputBox: TextBox 
+local submitSearchButton: TextButton 
+local cancelSearchButton: TextButton 
 local maximizeButton: TextButton 
 local scrollingFrame: ScrollingFrame
-local configScrollingFrame: ScrollingFrame -- Added
+local configScrollingFrame: ScrollingFrame 
 local speedButton1: TextButton
 local speedButton2: TextButton
 local jumpButton: TextButton         
@@ -138,7 +124,7 @@ local lagSwitchButton: TextButton
 local invisibilityButton: TextButton
 local fullbrightButton: TextButton
 local espButton: TextButton
-local customEspButton: TextButton -- Added
+local customEspButton: TextButton 
 local instantButton: TextButton 
 local speedometerButton: TextButton 
 local zoomButton: TextButton
@@ -151,18 +137,16 @@ local minimizeButton: TextButton
 local signatureLabel: TextLabel
 local statusLabel: TextLabel
 local speedometerLabel: TextLabel 
-local logo: ImageButton -- Modified to ImageButton
+local logo: ImageButton 
 local titleLabel: TextLabel
 local confirmLabel: TextLabel
-local tooltipFrame: Frame -- Added
-local tooltipLabel: TextLabel -- Added
+local tooltipFrame: Frame 
+local tooltipLabel: TextLabel 
 
 local humanoidWalkSpeedChangedConnection: RBXScriptConnection? = nil
 
--- Persistent Color Storage
 local buttonOriginalColors: {[TextButton]: Color3} = {}
 
--- Utility Functions
 local function valToString(val: any): string
     if type(val) == "number" or type(val) == "string" then return tostring(val)
     elseif typeof(val) == "EnumItem" then return val.Name
@@ -262,7 +246,6 @@ local function getHumanoidRootPart(): BasePart?
     return character:FindFirstChild("HumanoidRootPart") :: BasePart?
 end
 
--- Feature: Custom ESP (Added)
 local function clearCustomEsp()
     if customEspConnection then
         customEspConnection:Disconnect()
@@ -280,7 +263,6 @@ local function applyTargetHighlight(obj: Instance, keyword: string)
     local objNameLower = string.lower(obj.Name)
     local matchFound = false
     
-    -- Split keyword by spaces or commas to search for individual words
     for word in string.gmatch(string.lower(keyword), "[^%s,]+") do
         if string.find(objNameLower, word, 1, true) then
             matchFound = true
@@ -335,12 +317,9 @@ local function toggleCustomEsp()
         customEspButton.Text = "CUSTOM ESP"
         statusLabel.Text = "Ready"
         statusLabel.TextColor3 = CONFIG.SECONDARY_TEXT_COLOR
-    else
-        -- Logic to open the input prompt is handled in connectEvents
     end
 end
 
--- Feature: Proximity Warning 
 local function createWarningGui()
     if warningGui then warningGui:Destroy() end
     
@@ -382,7 +361,6 @@ local function toggleWarning()
     end
 end
 
--- Performance friendly check (runs 10 times per second)
 task.spawn(function()
     while task.wait(0.1) do
         if not playerState.isWarningActive then continue end
@@ -413,7 +391,6 @@ task.spawn(function()
     end
 end)
 
--- Speedometer Functionality
 local function updateSpeedometer()
     if not playerState.isSpeedometerActive then return end 
     
@@ -442,7 +419,6 @@ local function toggleSpeedometer()
     end
 end
 
--- Feature: Unlimited Zoom
 local function toggleZoom()
     playerState.isZoomActive = not playerState.isZoomActive
     setButtonActive(zoomButton, playerState.isZoomActive)
@@ -462,7 +438,6 @@ local function toggleZoom()
     end
 end
 
--- Custom Particle Effect
 local function playResetEffect(position: Vector3)
     local effectPart = Instance.new("Part")
     effectPart.Size = Vector3.new(1, 1, 1)
@@ -492,7 +467,6 @@ local function playResetEffect(position: Vector3)
     Debris:AddItem(effectPart, 2)
 end
 
--- ESP Helper Functions
 local function getTeamColor(team: Team?): Color3
     if not team then return Color3.fromRGB(255, 255, 255) end
     if teamColors[team] then return teamColors[team] end
@@ -708,7 +682,6 @@ local function toggleEsp()
     end
 end
 
--- Feature: Instant Interact
 local function toggleInstantInteract()
     playerState.isInstantInteractActive = not playerState.isInstantInteractActive
     setButtonActive(instantButton, playerState.isInstantInteractActive)
@@ -732,7 +705,6 @@ ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
     end
 end)
 
--- Integrated Functions
 local function toggleNoclip()
     playerState.isNoclipActive = not playerState.isNoclipActive
     setButtonActive(noclipButton, playerState.isNoclipActive)
@@ -1072,8 +1044,8 @@ local function resetPlayerState()
     playerState.isSpeedometerActive = false
     playerState.isZoomActive = false
     playerState.isWarningActive = false 
-    playerState.isCustomEspActive = false -- Added
-    playerState.customEspKeyword = ""     -- Added
+    playerState.isCustomEspActive = false 
+    playerState.customEspKeyword = ""     
     
     setButtonActive(speedButton1, false)
     setButtonActive(speedButton2, false)
@@ -1085,7 +1057,7 @@ local function resetPlayerState()
     setButtonActive(speedometerButton, false)
     setButtonActive(zoomButton, false)
     setButtonActive(warningButton, false) 
-    setButtonActive(customEspButton, false) -- Added
+    setButtonActive(customEspButton, false) 
 
     local invisChair = workspace:FindFirstChild("invischair")
     if invisChair then invisChair:Destroy() end
@@ -1105,10 +1077,10 @@ local function resetPlayerState()
     speedometerButton.Text = "SPEEDOMETER"
     zoomButton.Text = "UNLIMITED ZOOM"
     warningButton.Text = "PROXIMITY WARNING" 
-    customEspButton.Text = "CUSTOM ESP" -- Added
+    customEspButton.Text = "CUSTOM ESP" 
     
     playerState.espMode = 0; clearEsp()
-    clearCustomEsp() -- Added
+    clearCustomEsp() 
     
     statusLabel.Text = "Ready"; statusLabel.TextColor3 = CONFIG.SECONDARY_TEXT_COLOR
     statusLabel.Visible = true 
@@ -1124,7 +1096,6 @@ local function resetPlayerState()
     player.CameraMinZoomDistance = 0.5
 end
 
--- GUI Creation
 local function createGUI()
     local existing = player:WaitForChild("PlayerGui"):FindFirstChild("ToolsGUI")
     if existing then existing:Destroy() end
@@ -1135,7 +1106,6 @@ local function createGUI()
     screenGui.IgnoreGuiInset = true 
     screenGui.Parent = player:WaitForChild("PlayerGui")
     
-    -- Tooltip Frame UI (Fixed Position)
     tooltipFrame = Instance.new("Frame")
     tooltipFrame.Name = "TooltipFrame"
     tooltipFrame.BackgroundColor3 = CONFIG.ACCENT_COLOR
@@ -1311,7 +1281,6 @@ local function createGUI()
     styleConfirmButton(noButton, CONFIG.ACCENT_COLOR)
     noButton.Parent = confirmFrame
 
-    -- Custom ESP Input Frame
     inputFrame = Instance.new("Frame")
     inputFrame.Name = "InputFrame"
     inputFrame.Size = UDim2.new(0, 0, 0, 0) 
@@ -1395,7 +1364,6 @@ local function createGUI()
     titleTab.BorderSizePixel = 0
     titleTab.Parent = titleTabBg
 
-    -- Converted Logo to ImageButton
     logo = Instance.new("ImageButton")
     logo.Name = "Logo"
     logo.Size = UDim2.new(0, 12, 0, 12)
@@ -1467,7 +1435,6 @@ local function createGUI()
         uiPadding.PaddingTop = UDim.new(0, 4)
     end)
     
-    -- Config Frame Configuration
     configScrollingFrame = Instance.new("ScrollingFrame")
     configScrollingFrame.Name = "ConfigFrame"
     configScrollingFrame.Size = UDim2.new(1, -16, 0, 52)
@@ -1490,7 +1457,6 @@ local function createGUI()
     configPadding.PaddingBottom = UDim.new(0, 4)
     configPadding.Parent = configScrollingFrame
 
-    -- Map for shortened Config labels
     local shortNames = {
         SPEED_1_KEY = "SPD 1", SPEED_2_KEY = "SPD 2", LAG_SWITCH_KEY = "LAG KEY", INVISIBILITY_KEY = "INVIS",
         FULLBRIGHT_KEY = "F-BRIGHT", ESP_CHAMS_KEY = "ESP KEY", RESET_KEY = "RESET", NOCLIP_KEY = "NOCLIP",
@@ -1502,7 +1468,6 @@ local function createGUI()
         TEXT_COLOR = "TXT CLR", SECONDARY_TEXT_COLOR = "SEC TXT", ESP_MAX_DISTANCE = "ESP MAX", ESP_NEAR_DISTANCE = "ESP NEAR"
     }
 
-    -- Specific Sorting: "Speeds & Powers" first, then others alphabetical.
     local speedsPowersKeys = {"BOOSTED_SPEED_1", "BOOSTED_SPEED_2", "DEFAULT_JUMP", "BOOSTED_JUMP", "HITBOX_SIZE", "MAX_ZOOM", "MIN_ZOOM", "WARNING_DISTANCE"}
     local otherKeys = {}
     
@@ -1536,15 +1501,13 @@ local function createGUI()
         label.TextColor3 = CONFIG.TEXT_COLOR
         label.TextXAlignment = Enum.TextXAlignment.Center
         label.Font = Enum.Font.Gotham
-        label.TextSize = 7 -- Smaller text
+        label.TextSize = 7 
         label.TextTransparency = 1
-        label.Active = true -- Activated so it detects input for tooltips
+        label.Active = true 
         label.Parent = row
 
-        -- Fixed Tooltip logic connections
         label.MouseEnter:Connect(function()
             tooltipLabel.Text = key
-            -- Center tooltip right above the title tab background
             tooltipFrame.AnchorPoint = Vector2.new(0.5, 1)
             tooltipFrame.Position = UDim2.new(0, titleTabBg.AbsolutePosition.X + (titleTabBg.AbsoluteSize.X / 2), 0, titleTabBg.AbsolutePosition.Y - 5)
             tooltipFrame.Visible = true
@@ -1575,7 +1538,7 @@ local function createGUI()
         boxBg.BackgroundColor3 = CONFIG.ACCENT_COLOR
         boxBg.BackgroundTransparency = 1
         boxBg.BorderSizePixel = 0
-        boxBg.ClipsDescendants = true -- Prevents bounds bleeding 
+        boxBg.ClipsDescendants = true 
         boxBg.Parent = row
         
         local boxCorner = Instance.new("UICorner")
@@ -1595,10 +1558,10 @@ local function createGUI()
         box.Text = valToString(val)
         box.TextColor3 = CONFIG.SECONDARY_TEXT_COLOR
         box.Font = Enum.Font.Gotham
-        box.TextSize = 7 -- Smaller text
+        box.TextSize = 7 
         box.TextTransparency = 1
         box.ClearTextOnFocus = false
-        box.ClipsDescendants = true -- Secondary safeguard against bleeding 
+        box.ClipsDescendants = true 
         box.Parent = boxBg
         
         box.FocusLost:Connect(function()
@@ -1652,7 +1615,6 @@ local function createGUI()
         strokeGradient.Rotation = 0
         strokeGradient.Parent = stroke
 
-        -- Custom Shrink Animation when Pressed
         btn.MouseButton1Down:Connect(function()
             TweenService:Create(btn, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size = UDim2.new(0.85, 0, 0, 18)}):Play()
         end)
@@ -1675,7 +1637,7 @@ local function createGUI()
     invisibilityButton = Instance.new("TextButton"); setupButton(invisibilityButton, "InvisibilityButton", "INVISIBLE")
     fullbrightButton = Instance.new("TextButton"); setupButton(fullbrightButton, "FullbrightButton", "FULLBRIGHT")
     espButton = Instance.new("TextButton"); setupButton(espButton, "EspButton", "ESP CHAMS")
-    customEspButton = Instance.new("TextButton"); setupButton(customEspButton, "CustomEspButton", "CUSTOM ESP") -- Added
+    customEspButton = Instance.new("TextButton"); setupButton(customEspButton, "CustomEspButton", "CUSTOM ESP") 
     instantButton = Instance.new("TextButton"); setupButton(instantButton, "InstantButton", "INSTANT INTERACT") 
     speedometerButton = Instance.new("TextButton"); setupButton(speedometerButton, "SpeedometerButton", "SPEEDOMETER")
     zoomButton = Instance.new("TextButton"); setupButton(zoomButton, "ZoomButton", "UNLIMITED ZOOM")
@@ -1771,14 +1733,11 @@ local function connectEvents()
     local tweenInfoBounceIn = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In)
     local tweenInfoSmooth = TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
 
-    -- Handle Config Menu Opening
     logo.MouseButton1Click:Connect(function()
         local tweenFastest = TweenInfo.new(0.15)
         
-        -- Icon Spin 360 Animation
         TweenService:Create(logo, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Rotation = logo.Rotation + 360}):Play()
         
-        -- Fade out labels first
         TweenService:Create(speedometerLabel, tweenFastest, {TextTransparency = 1}):Play()
         TweenService:Create(statusLabel, tweenFastest, {TextTransparency = 1}):Play()
         TweenService:Create(signatureLabel, tweenFastest, {TextTransparency = 1}):Play()
@@ -1786,7 +1745,6 @@ local function connectEvents()
 
         if isConfigMenuOpen then
             isConfigMenuOpen = false
-            -- Reset status label when closing
             statusLabel.Text = "Ready"
             statusLabel.TextColor3 = CONFIG.SECONDARY_TEXT_COLOR
 
@@ -1829,7 +1787,6 @@ local function connectEvents()
             end
         else
             isConfigMenuOpen = true
-            -- Set status label when opening Configs
             statusLabel.Text = "Configs settings"
             statusLabel.TextColor3 = CONFIG.TEXT_COLOR
 
@@ -1872,7 +1829,6 @@ local function connectEvents()
             end
         end
 
-        -- Fade labels back in
         TweenService:Create(speedometerLabel, tweenFastest, {TextTransparency = 0}):Play()
         TweenService:Create(statusLabel, tweenFastest, {TextTransparency = 0}):Play()
         TweenService:Create(signatureLabel, tweenFastest, {TextTransparency = 0.5}):Play()
@@ -1893,7 +1849,6 @@ local function connectEvents()
     warningButton.MouseButton1Click:Connect(toggleWarning) 
     resetButton.MouseButton1Click:Connect(resetAndTeleport) 
 
-    -- Custom ESP Button Logic (Added)
     customEspButton.MouseButton1Click:Connect(function()
         if playerState.isCustomEspActive then
             toggleCustomEsp()
@@ -2209,7 +2164,7 @@ local function connectEvents()
         elseif input.KeyCode == CONFIG.SPEEDOMETER_KEY then toggleSpeedometer()
         elseif input.KeyCode == CONFIG.ZOOM_KEY then toggleZoom()
         elseif input.KeyCode == CONFIG.WARNING_KEY then toggleWarning() 
-        elseif input.KeyCode == CONFIG.CUSTOM_ESP_KEY then -- Added
+        elseif input.KeyCode == CONFIG.CUSTOM_ESP_KEY then 
             if playerState.isCustomEspActive then
                 toggleCustomEsp()
             end

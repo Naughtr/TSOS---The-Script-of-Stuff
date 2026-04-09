@@ -1,3 +1,5 @@
+--!strict
+
 local CONFIG = {
     SPEED_1_KEY = Enum.KeyCode.X,
     SPEED_2_KEY = Enum.KeyCode.C,
@@ -13,7 +15,7 @@ local CONFIG = {
     CUSTOM_ESP_KEY = Enum.KeyCode.K,
 
     BOOSTED_SPEED_1 = 21,
-    BOOSTED_SPEED_2 = 17, 
+    DYNAMIC_SPEED_ADDITIVE = 5, 
     DEFAULT_JUMP = 50,
     BOOSTED_JUMP = 60, 
     HITBOX_SIZE = 15,    
@@ -23,7 +25,7 @@ local CONFIG = {
 
     INVISIBILITY_POSITION = Vector3.new(-25.95, 84, 3537.55),
     
-    RESET_COOLDOWN = 5,
+    RESET_COOLDOWN = 2,
     
     BACKGROUND_COLOR = Color3.fromRGB(25, 25, 25),
     ACCENT_COLOR = Color3.fromRGB(45, 45, 45),
@@ -50,8 +52,8 @@ type PlayerState = {
     isSpeedometerActive: boolean,
     isZoomActive: boolean,
     isWarningActive: boolean, 
-    isCustomEspActive: boolean, 
-    customEspKeyword: string,   
+    isCustomEspActive: boolean,
+    customEspKeyword: string,
     espMode: number, 
     originalSpeed: number,
 }
@@ -78,10 +80,10 @@ local playerState: PlayerState = {
     isSpeedometerActive = false,
     isZoomActive = false,
     isWarningActive = false, 
-    isCustomEspActive = false, 
-    customEspKeyword = "",     
+    isCustomEspActive = false,
+    customEspKeyword = "",
     espMode = 0, 
-    originalSpeed = 16, 
+    originalSpeed = 16,
 }
 
 local lagSwitchIndicatorPart: Part? = nil
@@ -92,6 +94,7 @@ local lastResetTime = 0
 local hasShownMinimizeNotice = false 
 local warningGui: BillboardGui? = nil 
 local isConfigMenuOpen: boolean = false 
+local savedSpawnCFrame: CFrame? = nil 
 
 local espConnections: {RBXScriptConnection} = {}
 local espHighlights: {[Player]: Highlight} = {}
@@ -146,6 +149,8 @@ local tooltipLabel: TextLabel
 local humanoidWalkSpeedChangedConnection: RBXScriptConnection? = nil
 
 local buttonOriginalColors: {[TextButton]: Color3} = {}
+
+local gameSetSpeed = 16
 
 local function valToString(val: any): string
     if type(val) == "number" or type(val) == "string" then return tostring(val)
@@ -244,6 +249,32 @@ local function getHumanoidRootPart(): BasePart?
     local character = player.Character
     if not character then return nil end
     return character:FindFirstChild("HumanoidRootPart") :: BasePart?
+end
+
+local function setupSpeedHook()
+    local mt = getrawmetatable(game)
+    local old_index = mt.__index
+    local old_newindex = mt.__newindex
+    setreadonly(mt, false)
+
+    mt.__index = newcclosure(function(self, key)
+        if not checkcaller() and self:IsA("Humanoid") and key == "WalkSpeed" then
+            return gameSetSpeed
+        end
+        return old_index(self, key)
+    end)
+
+    mt.__newindex = newcclosure(function(self, key, value)
+        if not checkcaller() and self:IsA("Humanoid") and key == "WalkSpeed" then
+            gameSetSpeed = value
+            if playerState.activeBoost == "Boost2" then
+                return old_newindex(self, key, value + CONFIG.DYNAMIC_SPEED_ADDITIVE)
+            end
+        end
+        return old_newindex(self, key, value)
+    end)
+
+    setreadonly(mt, true)
 end
 
 local function clearCustomEsp()
@@ -451,7 +482,7 @@ local function playResetEffect(position: Vector3)
     attachment.Parent = effectPart
     
     local particles = Instance.new("ParticleEmitter")
-    particles.Color = ColorSequence.new(Color3.fromRGB(231, 76, 60), Color3.fromRGB(0, 170, 255))
+    particles.Color = ColorSequence.new(Color3.fromRGB(46, 204, 113), Color3.fromRGB(255, 255, 255))
     particles.LightEmission = 1
     particles.LightInfluence = 0
     particles.Size = NumberSequence.new({NumberSequenceKeypoint.new(0, 2), NumberSequenceKeypoint.new(1, 0)})
@@ -459,11 +490,11 @@ local function playResetEffect(position: Vector3)
     particles.Transparency = NumberSequence.new({NumberSequenceKeypoint.new(0, 0), NumberSequenceKeypoint.new(1, 1)})
     particles.Lifetime = NumberRange.new(0.5, 1)
     particles.Rate = 0
-    particles.Speed = NumberRange.new(15, 30)
+    particles.Speed = NumberRange.new(5, 15)
     particles.SpreadAngle = Vector2.new(360, 360)
     particles.Parent = attachment
     
-    particles:Emit(50)
+    particles:Emit(30)
     Debris:AddItem(effectPart, 2)
 end
 
@@ -534,18 +565,22 @@ local function updateEspLoop()
         if targetPlayer == player then continue end
         
         local char = targetPlayer.Character
-        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if char then
+            char.Archivable = false
+        end
         
-        if not char or not hrp then 
+        local trackPart = char and (char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso") or char:FindFirstChild("Head") or char:FindFirstChild("HumanoidRootPart"))
+        
+        if not char or not trackPart then 
             if espHighlights[targetPlayer] then espHighlights[targetPlayer]:Destroy(); espHighlights[targetPlayer] = nil end
             if espNametags[targetPlayer] then espNametags[targetPlayer]:Destroy(); espNametags[targetPlayer] = nil end
             if espOffScreenText[targetPlayer] then espOffScreenText[targetPlayer]:Destroy(); espOffScreenText[targetPlayer] = nil end
             continue 
         end
         
-        local distance = math.floor((myRoot.Position - hrp.Position).Magnitude)
+        local distance = math.floor((myRoot.Position - trackPart.Position).Magnitude)
         local color = getTeamColor(targetPlayer.Team)
-        local screenPos, onScreen = camera:WorldToViewportPoint(hrp.Position)
+        local screenPos, onScreen = camera:WorldToViewportPoint(trackPart.Position)
         
         if playerState.espMode >= 1 and playerState.espMode <= 4 then
             if not espHighlights[targetPlayer] or espHighlights[targetPlayer].Parent ~= char then
@@ -566,11 +601,11 @@ local function updateEspLoop()
         end
 
         if playerState.espMode >= 1 and playerState.espMode <= 3 then
-            if not espNametags[targetPlayer] or espNametags[targetPlayer].Parent ~= hrp then
+            if not espNametags[targetPlayer] or espNametags[targetPlayer].Parent ~= trackPart then
                 if espNametags[targetPlayer] then espNametags[targetPlayer]:Destroy() end
                 local tag = createEspNametag(targetPlayer.Name .. "\n[" .. distance .. " studs]", color)
-                tag.Parent = hrp
-                tag.Adornee = hrp
+                tag.Parent = trackPart
+                tag.Adornee = trackPart
                 espNametags[targetPlayer] = tag
             else
                 local tag = espNametags[targetPlayer]
@@ -700,8 +735,6 @@ end
 ProximityPromptService.PromptButtonHoldBegan:Connect(function(prompt)
     if playerState.isInstantInteractActive then
         prompt.HoldDuration = 0
-    else
-        prompt.HoldDuration = 4
     end
 end)
 
@@ -786,14 +819,15 @@ RunService.RenderStepped:Connect(function()
 end)
 
 local function enforceBoostedSpeed(humanoid: Humanoid)
-    local targetSpeed: number? = nil
     if playerState.activeBoost == "Boost1" then
-        targetSpeed = CONFIG.BOOSTED_SPEED_1
+        if humanoid.WalkSpeed ~= CONFIG.BOOSTED_SPEED_1 then
+            humanoid.WalkSpeed = CONFIG.BOOSTED_SPEED_1
+        end
     elseif playerState.activeBoost == "Boost2" then
-        targetSpeed = CONFIG.BOOSTED_SPEED_2
-    end
-    if targetSpeed and humanoid.WalkSpeed ~= targetSpeed then
-        humanoid.WalkSpeed = targetSpeed
+        local target = gameSetSpeed + CONFIG.DYNAMIC_SPEED_ADDITIVE
+        if humanoid.WalkSpeed ~= target then
+            humanoid.WalkSpeed = target
+        end
     end
 end
 
@@ -812,25 +846,25 @@ local function setBoostState(newBoostType: ActiveBoostType)
     if newBoostType == "Boost1" then
         humanoid.WalkSpeed = CONFIG.BOOSTED_SPEED_1
         speedButton1.Text = "SPEED 1 ON"
-        speedButton2.Text = "SPEED BOOST 2"
+        speedButton2.Text = "DYNAMIC SPD"
         statusLabel.Text = "Speed 1 Active"
         statusLabel.TextColor3 = Color3.fromRGB(46, 204, 113)
-        humanoidWalkSpeedChangedConnection = humanoid.Changed:Connect(function(property)
-            if property == "WalkSpeed" then enforceBoostedSpeed(humanoid) end
+        humanoidWalkSpeedChangedConnection = humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+            enforceBoostedSpeed(humanoid)
         end)
     elseif newBoostType == "Boost2" then
-        humanoid.WalkSpeed = CONFIG.BOOSTED_SPEED_2
+        humanoid.WalkSpeed = gameSetSpeed + CONFIG.DYNAMIC_SPEED_ADDITIVE
         speedButton1.Text = "SPEED BOOST 1"
-        speedButton2.Text = "SPEED 2 ON"
-        statusLabel.Text = "Speed 2 Active"
+        speedButton2.Text = "DYNAMIC ON"
+        statusLabel.Text = "Dynamic Speed (+"..CONFIG.DYNAMIC_SPEED_ADDITIVE..")"
         statusLabel.TextColor3 = Color3.fromRGB(52, 152, 219)
-        humanoidWalkSpeedChangedConnection = humanoid.Changed:Connect(function(property)
-            if property == "WalkSpeed" then enforceBoostedSpeed(humanoid) end
+        humanoidWalkSpeedChangedConnection = humanoid:GetPropertyChangedSignal("WalkSpeed"):Connect(function()
+            enforceBoostedSpeed(humanoid)
         end)
     else 
-        humanoid.WalkSpeed = playerState.originalSpeed
+        humanoid.WalkSpeed = gameSetSpeed
         speedButton1.Text = "SPEED BOOST 1"
-        speedButton2.Text = "SPEED BOOST 2"
+        speedButton2.Text = "DYNAMIC SPD"
         if playerState.espMode == 0 and not playerState.isLagSwitchActive and not playerState.isInvisible then
             statusLabel.Text = "Ready"
             statusLabel.TextColor3 = CONFIG.SECONDARY_TEXT_COLOR
@@ -864,7 +898,7 @@ local function toggleFullbright()
     else
         if fullbrightConnection then fullbrightConnection:Disconnect(); fullbrightConnection = nil end
         if whiteSky then whiteSky:Destroy(); whiteSky = nil end
-        Lighting.Ambient = originalLightingSettings.Ambient or Color3.new(0,0,0)
+         Lighting.Ambient = originalLightingSettings.Ambient or Color3.new(0,0,0)
         Lighting.OutdoorAmbient = originalLightingSettings.OutdoorAmbient or Color3.new(0,0,0)
         Lighting.Brightness = originalLightingSettings.Brightness or 1
         Lighting.FogEnd = originalLightingSettings.FogEnd or 10000
@@ -993,40 +1027,34 @@ local function toggleInvisibility()
     end
 end
 
-local function resetAndTeleport()
+local function toggleSpawnpoint()
     local currentTime = tick()
     if currentTime - lastResetTime < CONFIG.RESET_COOLDOWN then
-        statusLabel.Text = "Cooldown: " .. math.ceil(CONFIG.RESET_COOLDOWN - (currentTime - lastResetTime)) .. "s"
+        statusLabel.Text = "Wait: " .. math.ceil(CONFIG.RESET_COOLDOWN - (currentTime - lastResetTime)) .. "s"
         statusLabel.TextColor3 = Color3.fromRGB(231, 76, 60)
         return
     end
 
-    local hrp = getHumanoidRootPart()
-    if not hrp or not player.Character then return end
-
-    local originalPosition = hrp.CFrame
-    lastResetTime = currentTime
-    
-    playResetEffect(hrp.Position)
-    
-    for _, part in player.Character:GetDescendants() do
-        if part:IsA("BasePart") then
-            part:Destroy()
-        end
+    if savedSpawnCFrame then
+        savedSpawnCFrame = nil
+        setButtonActive(resetButton, false)
+        resetButton.Text = "SET SPAWN"
+        statusLabel.Text = "Spawnpoint Cleared"
+        statusLabel.TextColor3 = CONFIG.SECONDARY_TEXT_COLOR
+    else
+        local hrp = getHumanoidRootPart()
+        if not hrp then return end
+        
+        savedSpawnCFrame = hrp.CFrame
+        setButtonActive(resetButton, true)
+        resetButton.Text = "SPAWN ON"
+        playResetEffect(hrp.Position)
+        
+        statusLabel.Text = "Spawnpoint Set!"
+        statusLabel.TextColor3 = Color3.fromRGB(46, 204, 113)
     end
     
-    local connection
-    connection = player.CharacterAdded:Connect(function(newCharacter)
-        local newHrp = newCharacter:WaitForChild("HumanoidRootPart", 5)
-        if newHrp then
-            task.wait(0.1) 
-            newHrp.CFrame = originalPosition
-        end
-        connection:Disconnect()
-    end)
-    
-    statusLabel.Text = "Resetting..."
-    statusLabel.TextColor3 = Color3.fromRGB(46, 204, 113)
+    lastResetTime = currentTime
 end
 
 local function toggleSpecificBoost(boostType: "Boost1" | "Boost2")
@@ -1044,8 +1072,8 @@ local function resetPlayerState()
     playerState.isSpeedometerActive = false
     playerState.isZoomActive = false
     playerState.isWarningActive = false 
-    playerState.isCustomEspActive = false 
-    playerState.customEspKeyword = ""     
+    playerState.isCustomEspActive = false
+    playerState.customEspKeyword = ""
     
     setButtonActive(speedButton1, false)
     setButtonActive(speedButton2, false)
@@ -1057,7 +1085,7 @@ local function resetPlayerState()
     setButtonActive(speedometerButton, false)
     setButtonActive(zoomButton, false)
     setButtonActive(warningButton, false) 
-    setButtonActive(customEspButton, false) 
+    setButtonActive(customEspButton, false)
 
     local invisChair = workspace:FindFirstChild("invischair")
     if invisChair then invisChair:Destroy() end
@@ -1068,7 +1096,7 @@ local function resetPlayerState()
         setCharacterTransparency(player.Character, 0) 
     end
     speedButton1.Text = "SPEED BOOST 1"
-    speedButton2.Text = "SPEED BOOST 2"
+    speedButton2.Text = "DYNAMIC SPD"
     jumpButton.Text = "JUMP POWER"
     noclipButton.Text = "NOCLIP"
     lagSwitchButton.Text = "LAG SWITCH"
@@ -1077,10 +1105,10 @@ local function resetPlayerState()
     speedometerButton.Text = "SPEEDOMETER"
     zoomButton.Text = "UNLIMITED ZOOM"
     warningButton.Text = "PROXIMITY WARNING" 
-    customEspButton.Text = "CUSTOM ESP" 
+    customEspButton.Text = "CUSTOM ESP"
     
     playerState.espMode = 0; clearEsp()
-    clearCustomEsp() 
+    clearCustomEsp()
     
     statusLabel.Text = "Ready"; statusLabel.TextColor3 = CONFIG.SECONDARY_TEXT_COLOR
     statusLabel.Visible = true 
@@ -1088,7 +1116,7 @@ local function resetPlayerState()
     
     local humanoid = getHumanoid()
     if humanoid then 
-        humanoid.WalkSpeed = playerState.originalSpeed 
+        humanoid.WalkSpeed = gameSetSpeed
         humanoid.JumpPower = CONFIG.DEFAULT_JUMP
     end
 
@@ -1461,14 +1489,14 @@ local function createGUI()
         SPEED_1_KEY = "SPD 1", SPEED_2_KEY = "SPD 2", LAG_SWITCH_KEY = "LAG KEY", INVISIBILITY_KEY = "INVIS",
         FULLBRIGHT_KEY = "F-BRIGHT", ESP_CHAMS_KEY = "ESP KEY", RESET_KEY = "RESET", NOCLIP_KEY = "NOCLIP",
         SPEEDOMETER_KEY = "SPEEDO", ZOOM_KEY = "ZOOM", WARNING_KEY = "WARN", CUSTOM_ESP_KEY = "C-ESP",
-        BOOSTED_SPEED_1 = "BST SPD 1", BOOSTED_SPEED_2 = "BST SPD 2", DEFAULT_JUMP = "DEF JUMP",
+        BOOSTED_SPEED_1 = "BST SPD 1", DYNAMIC_SPEED_ADDITIVE = "DYN ADD", DEFAULT_JUMP = "DEF JUMP",
         BOOSTED_JUMP = "BST JUMP", HITBOX_SIZE = "HB SIZE", MAX_ZOOM = "MAX ZM", MIN_ZOOM = "MIN ZM",
         WARNING_DISTANCE = "WARN DIST", INVISIBILITY_POSITION = "INVIS POS", RESET_COOLDOWN = "RST CD",
         BACKGROUND_COLOR = "BG CLR", ACCENT_COLOR = "ACC CLR", TAB_COLOR = "TAB CLR", BORDER_COLOR = "BRDR CLR",
         TEXT_COLOR = "TXT CLR", SECONDARY_TEXT_COLOR = "SEC TXT", ESP_MAX_DISTANCE = "ESP MAX", ESP_NEAR_DISTANCE = "ESP NEAR"
     }
 
-    local speedsPowersKeys = {"BOOSTED_SPEED_1", "BOOSTED_SPEED_2", "DEFAULT_JUMP", "BOOSTED_JUMP", "HITBOX_SIZE", "MAX_ZOOM", "MIN_ZOOM", "WARNING_DISTANCE"}
+    local speedsPowersKeys = {"BOOSTED_SPEED_1", "DYNAMIC_SPEED_ADDITIVE", "DEFAULT_JUMP", "BOOSTED_JUMP", "HITBOX_SIZE", "MAX_ZOOM", "MIN_ZOOM", "WARNING_DISTANCE"}
     local otherKeys = {}
     
     for k, _ in pairs(CONFIG) do 
@@ -1629,7 +1657,7 @@ local function createGUI()
     end
 
     speedButton1 = Instance.new("TextButton"); setupButton(speedButton1, "SpeedButton1", "SPEED BOOST 1")
-    speedButton2 = Instance.new("TextButton"); setupButton(speedButton2, "SpeedButton2", "SPEED BOOST 2")
+    speedButton2 = Instance.new("TextButton"); setupButton(speedButton2, "SpeedButton2", "DYNAMIC SPD")
     jumpButton = Instance.new("TextButton"); setupButton(jumpButton, "JumpButton", "JUMP POWER")         
     noclipButton = Instance.new("TextButton"); setupButton(noclipButton, "NoclipButton", "NOCLIP")       
     hitboxButton = Instance.new("TextButton"); setupButton(hitboxButton, "HitboxButton", "HITBOX OFF")   
@@ -1642,7 +1670,7 @@ local function createGUI()
     speedometerButton = Instance.new("TextButton"); setupButton(speedometerButton, "SpeedometerButton", "SPEEDOMETER")
     zoomButton = Instance.new("TextButton"); setupButton(zoomButton, "ZoomButton", "UNLIMITED ZOOM")
     warningButton = Instance.new("TextButton"); setupButton(warningButton, "WarningButton", "PROXIMITY WARNING") 
-    resetButton = Instance.new("TextButton"); setupButton(resetButton, "ResetButton", "RESET TELE") 
+    resetButton = Instance.new("TextButton"); setupButton(resetButton, "ResetButton", "SET SPAWN") 
     
     speedometerLabel = Instance.new("TextLabel")
     speedometerLabel.Size = UDim2.new(1, -10, 0, 12)
@@ -1735,7 +1763,6 @@ local function connectEvents()
 
     logo.MouseButton1Click:Connect(function()
         local tweenFastest = TweenInfo.new(0.15)
-        
         TweenService:Create(logo, TweenInfo.new(0.4, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Rotation = logo.Rotation + 360}):Play()
         
         TweenService:Create(speedometerLabel, tweenFastest, {TextTransparency = 1}):Play()
@@ -1835,7 +1862,60 @@ local function connectEvents()
     end)
 
     speedButton1.MouseButton1Click:Connect(function() toggleSpecificBoost("Boost1") end)
-    speedButton2.MouseButton1Click:Connect(function() toggleSpecificBoost("Boost2") end)
+    
+    speedButton2.MouseButton1Click:Connect(function()
+        if playerState.activeBoost == "Boost2" then
+            setBoostState("None")
+        else
+            TweenService:Create(speedometerLabel, tweenInfoFast, {TextTransparency = 1}):Play()
+            TweenService:Create(statusLabel, tweenInfoFast, {TextTransparency = 1}):Play()
+            TweenService:Create(signatureLabel, tweenInfoFast, {TextTransparency = 1}):Play()
+            task.wait(0.1)
+
+            local t_retract = TweenService:Create(mainFrame, tweenInfoSmooth, {Size = UDim2.new(0, 120, 0, 22)})
+            t_retract:Play()
+            t_retract.Completed:Wait()
+
+            local t_fade_logo = TweenService:Create(logo, tweenInfoFast, {ImageTransparency = 1})
+            local t_fade_title = TweenService:Create(titleLabel, tweenInfoFast, {TextTransparency = 1})
+            local t_fade_close = TweenService:Create(closeButton, tweenInfoFast, {TextTransparency = 1})
+            local t_fade_min = TweenService:Create(minimizeButton, tweenInfoFast, {TextTransparency = 1})
+            t_fade_logo:Play()
+            t_fade_title:Play()
+            t_fade_close:Play()
+            t_fade_min:Play()
+            t_fade_title.Completed:Wait()
+            
+            local currentPos = mainFrame.Position
+            local t_shrink = TweenService:Create(mainFrame, tweenInfoSmooth, {
+                Size = UDim2.new(0, 0, 0, 22),
+                Position = UDim2.new(currentPos.X.Scale, currentPos.X.Offset + 60, currentPos.Y.Scale, currentPos.Y.Offset)
+            })
+            t_shrink:Play()
+            t_shrink.Completed:Wait()
+            
+            mainFrame.Visible = false
+            inputFrame.Size = UDim2.new(0, 0, 0, 22)
+            inputFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
+            inputFrame.Visible = true
+            inputBox.PlaceholderText = "Add to Speed (e.g. 5)"
+            inputBox.Text = tostring(CONFIG.DYNAMIC_SPEED_ADDITIVE)
+            
+            local t_expand = TweenService:Create(inputFrame, tweenInfoBounce, {Size = UDim2.new(0, 160, 0, 75), Position = UDim2.new(0.5, -80, 0.5, -37)})
+            t_expand:Play()
+            t_expand.Completed:Wait()
+            
+            TweenService:Create(inputBox, tweenInfoFast, {TextTransparency = 0}):Play()
+            TweenService:Create(submitSearchButton, tweenInfoFast, {TextTransparency = 0}):Play()
+            TweenService:Create(cancelSearchButton, tweenInfoFast, {TextTransparency = 0}):Play()
+            submitSearchButton.Text = "APPLY"
+            TweenService:Create(submitSearchButton.Background, tweenInfoFast, {BackgroundTransparency = 0}):Play()
+            TweenService:Create(cancelSearchButton.Background, tweenInfoFast, {BackgroundTransparency = 0}):Play()
+            TweenService:Create(submitSearchButton.Background.UIStroke, tweenInfoFast, {Transparency = 0}):Play()
+            TweenService:Create(cancelSearchButton.Background.UIStroke, tweenInfoFast, {Transparency = 1}):Play()
+        end
+    end)
+
     jumpButton.MouseButton1Click:Connect(toggleJumpPower)     
     noclipButton.MouseButton1Click:Connect(toggleNoclip)     
     hitboxButton.MouseButton1Click:Connect(toggleHitbox)     
@@ -1847,7 +1927,7 @@ local function connectEvents()
     speedometerButton.MouseButton1Click:Connect(toggleSpeedometer)
     zoomButton.MouseButton1Click:Connect(toggleZoom)
     warningButton.MouseButton1Click:Connect(toggleWarning) 
-    resetButton.MouseButton1Click:Connect(resetAndTeleport) 
+    resetButton.MouseButton1Click:Connect(toggleSpawnpoint) 
 
     customEspButton.MouseButton1Click:Connect(function()
         if playerState.isCustomEspActive then
@@ -1884,6 +1964,8 @@ local function connectEvents()
             inputFrame.Size = UDim2.new(0, 0, 0, 22)
             inputFrame.Position = UDim2.new(0.5, 0, 0.5, 0)
             inputFrame.Visible = true
+            inputBox.PlaceholderText = "Enter search keyword..."
+            inputBox.Text = ""
             
             local t_expand = TweenService:Create(inputFrame, tweenInfoBounce, {Size = UDim2.new(0, 160, 0, 75), Position = UDim2.new(0.5, -80, 0.5, -37)})
             t_expand:Play()
@@ -1892,14 +1974,15 @@ local function connectEvents()
             TweenService:Create(inputBox, tweenInfoFast, {TextTransparency = 0}):Play()
             TweenService:Create(submitSearchButton, tweenInfoFast, {TextTransparency = 0}):Play()
             TweenService:Create(cancelSearchButton, tweenInfoFast, {TextTransparency = 0}):Play()
+            submitSearchButton.Text = "SEARCH"
             TweenService:Create(submitSearchButton.Background, tweenInfoFast, {BackgroundTransparency = 0}):Play()
             TweenService:Create(cancelSearchButton.Background, tweenInfoFast, {BackgroundTransparency = 0}):Play()
             TweenService:Create(submitSearchButton.Background.UIStroke, tweenInfoFast, {Transparency = 0}):Play()
-            TweenService:Create(cancelSearchButton.Background.UIStroke, tweenInfoFast, {Transparency = 0}):Play()
+            TweenService:Create(cancelSearchButton.Background.UIStroke, tweenInfoFast, {Transparency = 1}):Play()
         end
     end)
 
-    local function closeCustomEspPrompt()
+    local function closeGenericPrompt()
         local t_fade = TweenService:Create(inputBox, tweenInfoFast, {TextTransparency = 1})
         t_fade:Play()
         TweenService:Create(submitSearchButton, tweenInfoFast, {TextTransparency = 1}):Play()
@@ -1947,14 +2030,21 @@ local function connectEvents()
     end
 
     submitSearchButton.MouseButton1Click:Connect(function()
-        local keyword = inputBox.Text
-        closeCustomEspPrompt()
-        if keyword ~= "" then
-            runCustomEspSearch(keyword)
+        if submitSearchButton.Text == "APPLY" then
+            local val = tonumber(inputBox.Text)
+            if val then CONFIG.DYNAMIC_SPEED_ADDITIVE = val end
+            closeGenericPrompt()
+            toggleSpecificBoost("Boost2")
+        else
+            local keyword = inputBox.Text
+            closeGenericPrompt()
+            if keyword ~= "" then
+                runCustomEspSearch(keyword)
+            end
         end
     end)
 
-    cancelSearchButton.MouseButton1Click:Connect(closeCustomEspPrompt)
+    cancelSearchButton.MouseButton1Click:Connect(closeGenericPrompt)
 
     RunService.RenderStepped:Connect(updateSpeedometer)
 
@@ -2001,7 +2091,7 @@ local function connectEvents()
         TweenService:Create(yesButton.Background, tweenInfoFast, {BackgroundTransparency = 0}):Play()
         TweenService:Create(noButton.Background, tweenInfoFast, {BackgroundTransparency = 0}):Play()
         TweenService:Create(yesButton.Background.UIStroke, tweenInfoFast, {Transparency = 0}):Play()
-        TweenService:Create(noButton.Background.UIStroke, tweenInfoFast, {Transparency = 0}):Play()
+        TweenService:Create(noButton.Background.UIStroke, tweenInfoFast, {Transparency = 1}):Play()
     end)
     
     yesButton.MouseButton1Click:Connect(function()
@@ -2168,13 +2258,23 @@ local function connectEvents()
             if playerState.isCustomEspActive then
                 toggleCustomEsp()
             end
-        elseif input.KeyCode == CONFIG.RESET_KEY then resetAndTeleport() end 
+        elseif input.KeyCode == CONFIG.RESET_KEY then toggleSpawnpoint() end 
     end)
     
     player.CharacterAdded:Connect(function(char)
         resetPlayerState()
         local hum = char:WaitForChild("Humanoid") :: Humanoid
-        playerState.originalSpeed = hum.WalkSpeed
+        gameSetSpeed = hum.WalkSpeed
+        
+        if savedSpawnCFrame then
+            local hrp = char:WaitForChild("HumanoidRootPart", 5)
+            if hrp then
+                task.wait(0.2)
+                hrp.CFrame = savedSpawnCFrame
+                setButtonActive(resetButton, true)
+                resetButton.Text = "SPAWN ON"
+            end
+        end
     end)
 end
 
@@ -2183,11 +2283,12 @@ local function initialize()
     randomizeButtonColors()
     connectEvents()
     playStartupAnimation() 
+    setupSpeedHook() 
     
     if player.Character then
         local hum = getHumanoid()
         if hum then 
-            playerState.originalSpeed = hum.WalkSpeed
+            gameSetSpeed = hum.WalkSpeed
         end
     end
 end

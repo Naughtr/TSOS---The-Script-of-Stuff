@@ -110,15 +110,22 @@ return function(plr, CFG)
     bCls=mk("TextButton", tTab, {Size=ud2(0,14,0,14), AnchorPoint=Vector2.new(0,0.5), Position=ud2(1,-18,0.5,0), Text="×", TextTransparency=1, BackgroundTransparency=1, TextColor3=c3(255,255,255), Font=Enum.Font.GothamBold, TextSize=14, BorderSizePixel=0}); bMin=mk("TextButton", tTab, {Size=ud2(0,14,0,14), AnchorPoint=Vector2.new(0,0.5), Position=ud2(1,-34,0.5,0), Text="-", TextTransparency=1, BackgroundTransparency=1, TextColor3=c3(255,255,255), Font=Enum.Font.GothamBold, TextSize=14, BorderSizePixel=0})
     
     scrl = mk("ScrollingFrame", main, {Size=ud2(1,-16,0,44), Position=ud2(0,8,0,36), BackgroundColor3=CFG.BACKGROUND_COLOR, ScrollBarThickness=2, CanvasSize=ud2(0,0,0,0), ScrollingDirection=Enum.ScrollingDirection.Y, ElasticBehavior=Enum.ElasticBehavior.Always})
-    -- ADJUSTED: Added Padding to prevent border clipping against the ScrollFrame edges
-    local uiPad = mk("UIPadding", scrl, {PaddingTop=UDim.new(0,2), PaddingBottom=UDim.new(0,4), PaddingLeft=UDim.new(0,2), PaddingRight=UDim.new(0,2)})
+    -- CHANGED: Increased PaddingBottom and added PaddingLeft/Right for border breathing room
+    local uiPad = mk("UIPadding", scrl, {PaddingTop=UDim.new(0,2), PaddingBottom=UDim.new(0,6), PaddingLeft=UDim.new(0,2), PaddingRight=UDim.new(0,2)})
     local uiLL = mk("UIListLayout", scrl, {Padding=UDim.new(0,4), HorizontalAlignment=Enum.HorizontalAlignment.Center})
     
+    -- FIXED: Calculation now includes Top and Bottom padding correctly
     uiLL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        scrl.CanvasSize = ud2(0, 0, 0, uiLL.AbsoluteContentSize.Y + 4)
+        scrl.CanvasSize = ud2(0, 0, 0, uiLL.AbsoluteContentSize.Y + uiPad.PaddingTop.Offset + uiPad.PaddingBottom.Offset)
     end)
 
-    cScrl = mk("ScrollingFrame", main, {Name="ConfigFrame", Size=ud2(1,-16,0,44), Position=ud2(0,8,0,36), BackgroundColor3=CFG.BACKGROUND_COLOR, ScrollBarThickness=2, CanvasSize=ud2(0,0,0,0), Visible=false, ScrollingDirection=Enum.ScrollingDirection.Y, ElasticBehavior=Enum.ElasticBehavior.Always}); local cfLL=mk("UIListLayout", cScrl, {Padding=UDim.new(0,4), HorizontalAlignment=Enum.HorizontalAlignment.Center}); mk("UIPadding", cScrl, {PaddingTop=UDim.new(0,2), PaddingBottom=UDim.new(0,4), PaddingLeft=UDim.new(0,2), PaddingRight=UDim.new(0,2)})
+    cScrl = mk("ScrollingFrame", main, {Name="ConfigFrame", Size=ud2(1,-16,0,44), Position=ud2(0,8,0,36), BackgroundColor3=CFG.BACKGROUND_COLOR, ScrollBarThickness=2, CanvasSize=ud2(0,0,0,0), Visible=false, ScrollingDirection=Enum.ScrollingDirection.Y, ElasticBehavior=Enum.ElasticBehavior.Always})
+    local cfPad = mk("UIPadding", cScrl, {PaddingTop=UDim.new(0,2), PaddingBottom=UDim.new(0,6), PaddingLeft=UDim.new(0,2), PaddingRight=UDim.new(0,2)})
+    local cfLL=mk("UIListLayout", cScrl, {Padding=UDim.new(0,4), HorizontalAlignment=Enum.HorizontalAlignment.Center})
+    
+    cfLL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() 
+        cScrl.CanvasSize=ud2(0,0,0,cfLL.AbsoluteContentSize.Y + cfPad.PaddingTop.Offset + cfPad.PaddingBottom.Offset) 
+    end)
     
     local sNm={SPEED_1_KEY="SPD 1",SPEED_2_KEY="SPD 2",LAG_SWITCH_KEY="LAG KEY",INVISIBILITY_KEY="INVIS",FULLBRIGHT_KEY="F-BRIGHT",ESP_CHAMS_KEY="ESP KEY",RESET_KEY="RESET",NOCLIP_KEY="NOCLIP",SPEEDOMETER_KEY="SPEEDO",ZOOM_KEY="ZOOM",WARNING_KEY="WARN",CUSTOM_ESP_KEY="C-ESP",BOOSTED_SPEED_1="BST SPD 1",DYNAMIC_SPEED_ADDITIVE="DYN ADD",DEFAULT_JUMP="DEF JUMP",BOOSTED_JUMP="BST JUMP",HITBOX_SIZE="HB SIZE",MAX_ZOOM="MAX ZM",MIN_ZOOM="MIN ZM",WARNING_DISTANCE="WARN DIST",INVISIBILITY_POSITION="INVIS POS",RESET_COOLDOWN="RST CD",BACKGROUND_COLOR="BG CLR",ACCENT_COLOR="ACC CLR",TAB_COLOR="TAB CLR",BORDER_COLOR="BRDR CLR",TEXT_COLOR="TXT CLR",SECONDARY_TEXT_COLOR="SEC TXT",ESP_MAX_DISTANCE="ESP MAX",ESP_NEAR_DISTANCE="ESP NEAR"}
     local pK, oK = {"BOOSTED_SPEED_1","DYNAMIC_SPEED_ADDITIVE","DEFAULT_JUMP","BOOSTED_JUMP","HITBOX_SIZE","MAX_ZOOM","MIN_ZOOM","WARNING_DISTANCE"}, {}; for k,_ in pairs(CFG) do if not table.find(pK,k) then table.insert(oK,k) end end; table.sort(oK); local sk={}; for _,k in ipairs(pK) do table.insert(sk,k) end; for _,k in ipairs(oK) do table.insert(sk,k) end
@@ -129,10 +136,9 @@ return function(plr, CFG)
         local bb=mk("Frame", r, {Size=ud2(0.5,-4,1,0), Position=ud2(0.5,2,0,0), BackgroundColor3=CFG.ACCENT_COLOR, BackgroundTransparency=1, BorderSizePixel=0, ClipsDescendants=true}); mk("UICorner", bb, {CornerRadius=UDim.new(0,4)}); mk("UIStroke", bb, {Color=CFG.BORDER_COLOR, Thickness=1, Transparency=1}); local bx=mk("TextBox", bb, {Size=ud2(1,-4,1,0), Position=ud2(0,2,0,0), BackgroundTransparency=1, Text=toStr(CFG[k]), TextColor3=CFG.SECONDARY_TEXT_COLOR, Font=Enum.Font.Gotham, TextSize=7, TextTransparency=1, ClearTextOnFocus=false, ClipsDescendants=true})
         bx.FocusLost:Connect(function() local pv=pVal(CFG[k], bx.Text); CFG[k]=pv; bx.Text=toStr(pv) end) 
     end
-    cfLL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() cScrl.CanvasSize=ud2(0,0,0,cfLL.AbsoluteContentSize.Y + 4) end)
     
     local function sB(nm, tx)
-        -- ADJUSTED: Size X changed from 0.92 to 0.9 to prevent border clipping
+        -- FIXED: Slightly smaller width (0.9) to ensure horizontal stroke isn't clipped by scroll bar
         local b=mk("TextButton", scrl, {Name=nm, Size=ud2(0.9,0,0,20), Text=tx, BackgroundTransparency=1, TextColor3=c3(255,255,255), TextTransparency=1, Font=Enum.Font.GothamBold, TextSize=10, ZIndex=2})
         local bg=mk("Frame", b, {Name="Background", Size=ud2(1,0,1,0), BackgroundColor3=c3(45,45,45), BackgroundTransparency=1, BorderSizePixel=0, ZIndex=1})
         mk("UICorner", bg, {CornerRadius=UDim.new(0,4)}); mk("UIPadding", bg, {PaddingLeft=UDim.new(0,0)}); mk("UIGradient", bg, {Rotation=0}); local st=mk("UIStroke", bg, {Thickness=1, ApplyStrokeMode=Enum.ApplyStrokeMode.Border, Color=c3(255,255,255), Transparency=1}); mk("UIGradient", st, {Rotation=0})
@@ -156,15 +162,14 @@ return function(plr, CFG)
         local buttonHeight = 20
         local padding = 4
         local step = buttonHeight + padding
+        local topOff = f:FindFirstChildOfClass("UIPadding") and f:FindFirstChildOfClass("UIPadding").PaddingTop.Offset or 0
         
         local currentY = f.CanvasPosition.Y
-        local targetY = math.round(currentY / step) * step
+        -- FIXED: Added topOff to snap rounding to align perfectly with first button
+        local targetY = math.round((currentY - topOff) / step) * step + topOff
         
-        -- Guarantee two buttons perfectly fit by clamping out any half-scrolled overlap at the bottom
         local maxScroll = math.max(0, f.CanvasSize.Y.Offset - f.AbsoluteSize.Y)
-        local maxSnapY = math.max(0, math.floor(maxScroll / step) * step)
-        
-        targetY = math.clamp(targetY, 0, maxSnapY)
+        targetY = math.clamp(targetY, 0, maxScroll)
         
         if math.abs(currentY - targetY) > 0.5 then
             local tw = TS:Create(f, snapInfo, {CanvasPosition = Vector2.new(0, targetY)})
@@ -181,7 +186,6 @@ return function(plr, CFG)
             if snapDebounce[f] then return end
             local t = tick()
             lastScrollTimes[f] = t
-            -- Wait for momentum to completely settle for 0.15s before applying the snap
             task.delay(0.15, function()
                 if lastScrollTimes[f] == t then
                     handleSnap(f)
@@ -190,7 +194,6 @@ return function(plr, CFG)
         end)
     end
 
-    -- CHANGED: Size expanded slightly to 114 to prevent UI overlap and tightly frame 44px
     local function shwUi(vis, mSzX, mSzY) main.Visible=vis; if vis then tw(main, tSmth, {Size=ud2(0,mSzX,0,mSzY)}, true) end end
     local function fdMnu(a, c) tw(logo, tFast, {ImageTransparency=a}); tw(tLbl, tFast, {TextTransparency=a}); tw(bCls, tFast, {TextTransparency=a}); tw(bMin, tFast, {TextTransparency=a}, c) end
     local function setA(a) tw(spdoLbl,tFast,{TextTransparency=a}); tw(stLbl,tFast,{TextTransparency=a}); tw(sigLbl,tFast,{TextTransparency=a==0 and 0.5 or 1}) end

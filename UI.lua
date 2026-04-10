@@ -42,7 +42,7 @@ return function(plr, CFG)
     local function crStylB(p, sz, pos, tx, clr)
         local b=mk("TextButton", p, {Size=sz, Position=pos, Text=tx, BackgroundTransparency=1, TextColor3=c3(255,255,255), TextTransparency=1, Font=Enum.Font.GothamBold, TextSize=10, ZIndex=2})
         local bg=mk("Frame", b, {Name="Background", Size=ud2(1,0,1,0), BackgroundColor3=clr, BackgroundTransparency=1, BorderSizePixel=0, ZIndex=1})
-        mk("UICorner", bg, {CornerRadius=UDim.new(0,4)}); mk("UIGradient", bg, {Color=ColorSequence.new(clr,c3(15,15,15))})
+        mk("UICorner", bg, {CornerRadius=UDim.new(0,4)}); mk("UIPadding", bg, {PaddingLeft=UDim.new(0,0)}); mk("UIGradient", bg, {Color=ColorSequence.new(clr,c3(15,15,15))})
         local str=mk("UIStroke", bg, {Thickness=1, ApplyStrokeMode=Enum.ApplyStrokeMode.Border, Color=c3(255,255,255), Transparency=1})
         local h,s,v=clr:ToHSV(); mk("UIGradient", str, {Color=ColorSequence.new(Color3.fromHSV(h,s*0.8,math.min(v*1.4,1)),c3(0,0,0))}); return b
     end
@@ -115,27 +115,42 @@ return function(plr, CFG)
     end
 
     function UI_API.minimize()
-        bMin.Visible, bCls.Visible = false, false -- Disable interaction
+        bMin.Visible, bCls.Visible = false, false 
         trnMnu(scrl, nil, nil, nil)
         minFrm.Position, minFrm.Visible = ud2(0.5,-30,0,-50), true
-        tw(minFrm, tBnc, {Position=ud2(0.5,-30,0,10)}, true) -- Wait for animation
-        bMax.Active = true -- Enable maximize interaction
+        tw(minFrm, tBnc, {Position=ud2(0.5,-30,0,10)}, true)
+        bMax.Active = true 
     end
 
     function UI_API.maximize()
-        bMax.Active = false -- Prevent double-clicking max
+        bMax.Active = false 
         tw(minFrm, tSmth, {Position=ud2(0.5,-30,0,-50)}, true)
         minFrm.Visible=false
         unTrn(main)
-        bMin.Visible, bCls.Visible = true, true -- Re-enable interaction
+        bMin.Visible, bCls.Visible = true, true
     end
 
-    function UI_API.showConfirm() trnMnu(scrl, nil, cnfFrm, ud2(0,150,0,80)); cnfEx(0) end
-    function UI_API.hideConfirm() cnfEx(1); task.wait(0.2); unTrn(cnfFrm) end
+    function UI_API.showConfirm() 
+        bMin.Visible, bCls.Visible = false, false -- Prevent interacting during confirm
+        trnMnu(scrl, nil, cnfFrm, ud2(0,150,0,80)); cnfEx(0) 
+    end
+    
+    function UI_API.hideConfirm() 
+        cnfEx(1); task.wait(0.2); unTrn(cnfFrm)
+        bMin.Visible, bCls.Visible = true, true -- Restore buttons
+    end
+    
     function UI_API.hideConfirmHard() cnfEx(1); task.wait(0.2); tw(cnfFrm, tBncIn, {Size=ud2(0,0,0,0), Position=ud2(0.5,0,0.5,0)}, true) end
     
-    function UI_API.showInput(ph, tx, btnTx) trnMnu(scrl, nil, inpFrm, ud2(0,160,0,75)); inBox.PlaceholderText, inBox.Text, bSrch.Text = ph, tx, btnTx; inEx(0) end
-    function UI_API.hideInput() inEx(1); task.wait(0.2); unTrn(inpFrm) end
+    function UI_API.showInput(ph, tx, btnTx) 
+        bMin.Visible, bCls.Visible = false, false
+        trnMnu(scrl, nil, inpFrm, ud2(0,160,0,75)); inBox.PlaceholderText, inBox.Text, bSrch.Text = ph, tx, btnTx; inEx(0) 
+    end
+    
+    function UI_API.hideInput() 
+        inEx(1); task.wait(0.2); unTrn(inpFrm) 
+        bMin.Visible, bCls.Visible = true, true
+    end
 
     function UI_API.setStatus(tx, clr) stLbl.Text = tx; stLbl.TextColor3 = clr or CFG.SECONDARY_TEXT_COLOR end
     function UI_API.setButtonState(b, txt, isActive) if txt then b.Text = txt end; stBAct(b, isActive) end

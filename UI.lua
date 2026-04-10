@@ -57,26 +57,25 @@ return function(plr, CFG)
     tTabBg = mk("Frame", main, {Name="TitleTabBg", Size=ud2(1,0,0,22), BackgroundColor3=CFG.TAB_COLOR, BorderSizePixel=0}); mk("UICorner", tTabBg, {CornerRadius=UDim.new(0,10)}); mk("Frame", tTabBg, {Name="BottomBorder", Size=ud2(1,0,0,1), Position=ud2(0,0,1,-1), BackgroundColor3=CFG.BORDER_COLOR, BorderSizePixel=0, ZIndex=3}); local tTab=mk("Frame", tTabBg, {Name="TitleTab", Size=ud2(1,0,1,0), BackgroundTransparency=1, BorderSizePixel=0})
     logo=mk("ImageButton", tTab, {Name="Logo", Size=ud2(0,12,0,12), AnchorPoint=Vector2.new(0,0.5), Position=ud2(0,8,0.5,0), BackgroundTransparency=1, ImageTransparency=1, Image="rbxassetid://10793494685"}); tLbl=mk("TextLabel", tTab, {Size=ud2(1,-35,1,0), AnchorPoint=Vector2.new(0,24,0.5,0), TextTransparency=1, Text="TSOS", BackgroundTransparency=1, TextColor3=c3(255,255,255), Font=Enum.Font.GothamBold, TextSize=10, TextXAlignment=Enum.TextXAlignment.Left}); bCls=mk("TextButton", tTab, {Size=ud2(0,14,0,14), AnchorPoint=Vector2.new(0,0.5), Position=ud2(1,-18,0.5,0), Text="×", TextTransparency=1, BackgroundTransparency=1, TextColor3=c3(255,255,255), Font=Enum.Font.GothamBold, TextSize=14, BorderSizePixel=0}); bMin=mk("TextButton", tTab, {Size=ud2(0,14,0,14), AnchorPoint=Vector2.new(0,0.5), Position=ud2(1,-34,0.5,0), Text="-", TextTransparency=1, BackgroundTransparency=1, TextColor3=c3(255,255,255), Font=Enum.Font.GothamBold, TextSize=14, BorderSizePixel=0})
     
-    -- SCROLLING LOGIC: Fixed jitter by removing alignment switching
-    scrl = mk("ScrollingFrame", main, {Size=ud2(1,-16,0,52), Position=ud2(0,8,0,36), BackgroundColor3=CFG.BACKGROUND_COLOR, ScrollBarThickness=2, CanvasSize=ud2(0,0,0,0), ScrollingDirection=Enum.ScrollingDirection.Y, ElasticBehavior=Enum.ElasticBehavior.Always}); local uiPad=mk("UIPadding", scrl, {PaddingTop=UDim.new(0,4), PaddingBottom=UDim.new(0,4)}); local uiLL=mk("UIListLayout", scrl, {Padding=UDim.new(0,4), HorizontalAlignment=Enum.HorizontalAlignment.Center, VerticalAlignment=Enum.VerticalAlignment.Top})
-    
+    scrl = mk("ScrollingFrame", main, {Size=ud2(1,-16,0,52), Position=ud2(0,8,0,36), BackgroundColor3=CFG.BACKGROUND_COLOR, ScrollBarThickness=2, CanvasSize=ud2(0,0,0,0), ScrollingDirection=Enum.ScrollingDirection.Y, ElasticBehavior=Enum.ElasticBehavior.Always}); local uiPad=mk("UIPadding", scrl, {PaddingTop=UDim.new(0,4), PaddingBottom=UDim.new(0,4)}); local uiLL=mk("UIListLayout", scrl, {Padding=UDim.new(0,4), HorizontalAlignment=Enum.HorizontalAlignment.Center})
     uiLL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() scrl.CanvasSize = ud2(0,0,0,uiLL.AbsoluteContentSize.Y + 8) end)
     
+    -- FIXED: Reverted overscroll logic to stable clamp version to prevent bottom jitter
     scrl:GetPropertyChangedSignal("CanvasPosition"):Connect(function() 
         local yP = scrl.CanvasPosition.Y
         local wH = scrl.AbsoluteWindowSize.Y == 0 and 52 or scrl.AbsoluteWindowSize.Y
         local mS = math.max(0, scrl.CanvasSize.Y.Offset - wH)
+        local bnc = 0
         
-        if yP < 0 then -- Top Bounce
-            uiPad.PaddingTop = UDim.new(0, 4 + math.abs(yP) * 0.15)
-            uiPad.PaddingBottom = UDim.new(0, 4)
-        elseif yP > mS then -- Bottom Bounce
-            uiPad.PaddingBottom = UDim.new(0, 4 + (yP - mS) * 0.15)
-            uiPad.PaddingTop = UDim.new(0, 4)
-        else -- Normal
-            uiPad.PaddingTop = UDim.new(0, 4)
-            uiPad.PaddingBottom = UDim.new(0, 4)
+        if yP < 0 then 
+            bnc = math.abs(yP) 
+        elseif yP > mS then 
+            bnc = yP - mS 
         end
+        
+        uiLL.VerticalAlignment = Enum.VerticalAlignment.Top
+        uiLL.Padding = UDim.new(0, 4 + bnc * 0.12)
+        uiPad.PaddingTop = UDim.new(0, 4 + (yP < 0 and bnc * 0.1 or 0))
     end)
 
     cScrl = mk("ScrollingFrame", main, {Name="ConfigFrame", Size=ud2(1,-16,0,52), Position=ud2(0,8,0,36), BackgroundColor3=CFG.BACKGROUND_COLOR, ScrollBarThickness=2, CanvasSize=ud2(0,0,0,0), Visible=false, ScrollingDirection=Enum.ScrollingDirection.Y, ElasticBehavior=Enum.ElasticBehavior.Always}); local cfLL=mk("UIListLayout", cScrl, {Padding=UDim.new(0,4), HorizontalAlignment=Enum.HorizontalAlignment.Center}); mk("UIPadding", cScrl, {PaddingTop=UDim.new(0,4), PaddingBottom=UDim.new(0,4)})
@@ -228,6 +227,7 @@ return function(plr, CFG)
 
     function UI_API.destroyGui() gui:Destroy() end
 
+    -- Return only UI instances that need event binding, and the clean APIs.
     return {
         gui=gui, inBox=inBox, bSpd1=bSpd1, bSpd2=bSpd2, bJmp=bJmp, bNc=bNc, bHb=bHb, bLag=bLag, bInv=bInv, bFb=bFb, bEsp=bEsp, bCesp=bCesp, bInst=bInst, bSpdo=bSpdo, bZm=bZm, bWrn=bWrn, bRst=bRst, bCls=bCls, bYes=bYes, bNo=bNo, bMin=bMin, bMax=bMax, bSrch=bSrch, bCnc=bCnc, logo=logo, btns=btns, 
         API = UI_API

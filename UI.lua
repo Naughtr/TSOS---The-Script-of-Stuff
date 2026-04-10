@@ -56,13 +56,11 @@ return function(plr, CFG)
     inpFrm = mk("Frame", gui, {Name="InputFrame", Size=ud2(0,0,0,0), Position=ud2(0.5,0,0.5,0), BackgroundColor3=CFG.BACKGROUND_COLOR, BorderSizePixel=0, Visible=false, ClipsDescendants=true}); mk("UICorner", inpFrm, {CornerRadius=UDim.new(0,8)}); mk("UIStroke", inpFrm, {Color=CFG.BORDER_COLOR, Thickness=1}); inBox=mk("TextBox", inpFrm, {Size=ud2(1,-20,0,25), Position=ud2(0,10,0,10), BackgroundColor3=CFG.ACCENT_COLOR, TextColor3=CFG.TEXT_COLOR, Font=Enum.Font.Gotham, TextSize=10, PlaceholderText="Enter search keyword...", PlaceholderColor3=CFG.SECONDARY_TEXT_COLOR, Text="", TextTransparency=1}); mk("UICorner", inBox, {CornerRadius=UDim.new(0,4)}); mk("UIStroke", inBox, {Color=CFG.BORDER_COLOR, Thickness=1}); bSrch=crStylB(inpFrm, ud2(0.4,0,0,20), ud2(0.05,0,0.60,0), "SEARCH", c3(46,204,113)); bCnc=crStylB(inpFrm, ud2(0.4,0,0,20), ud2(0.55,0,0.60,0), "CANCEL", c3(231,76,60))
     tTabBg = mk("Frame", main, {Name="TitleTabBg", Size=ud2(1,0,0,22), BackgroundColor3=CFG.TAB_COLOR, BorderSizePixel=0}); mk("UICorner", tTabBg, {CornerRadius=UDim.new(0,10)}); mk("Frame", tTabBg, {Name="BottomBorder", Size=ud2(1,0,0,1), Position=ud2(0,0,1,-1), BackgroundColor3=CFG.BORDER_COLOR, BorderSizePixel=0, ZIndex=3}); local tTab=mk("Frame", tTabBg, {Name="TitleTab", Size=ud2(1,0,1,0), BackgroundTransparency=1, BorderSizePixel=0})
     
-    -- Fixed Title and Logo alignment
     logo=mk("ImageButton", tTab, {Name="Logo", Size=ud2(0,12,0,12), AnchorPoint=Vector2.new(0,0.5), Position=ud2(0,8,0.5,0), BackgroundTransparency=1, ImageTransparency=1, Image="rbxassetid://10793494685"})
     tLbl=mk("TextLabel", tTab, {Name="Title", Size=ud2(1,-40,1,0), AnchorPoint=Vector2.new(0,0.5), Position=ud2(0,24,0.5,0), TextTransparency=1, Text="TSOS", BackgroundTransparency=1, TextColor3=c3(255,255,255), Font=Enum.Font.GothamBold, TextSize=10, TextXAlignment=Enum.TextXAlignment.Left})
     
     bCls=mk("TextButton", tTab, {Size=ud2(0,14,0,14), AnchorPoint=Vector2.new(0,0.5), Position=ud2(1,-18,0.5,0), Text="×", TextTransparency=1, BackgroundTransparency=1, TextColor3=c3(255,255,255), Font=Enum.Font.GothamBold, TextSize=14, BorderSizePixel=0}); bMin=mk("TextButton", tTab, {Size=ud2(0,14,0,14), AnchorPoint=Vector2.new(0,0.5), Position=ud2(1,-34,0.5,0), Text="-", TextTransparency=1, BackgroundTransparency=1, TextColor3=c3(255,255,255), Font=Enum.Font.GothamBold, TextSize=14, BorderSizePixel=0})
     
-    -- Main Scrolling Frame
     scrl = mk("ScrollingFrame", main, {Size=ud2(1,-16,0,52), Position=ud2(0,8,0,36), BackgroundColor3=CFG.BACKGROUND_COLOR, ScrollBarThickness=2, CanvasSize=ud2(0,0,0,0), ScrollingDirection=Enum.ScrollingDirection.Y, ElasticBehavior=Enum.ElasticBehavior.Always})
     local uiPad = mk("UIPadding", scrl, {PaddingTop=UDim.new(0,4), PaddingBottom=UDim.new(0,4)})
     local uiLL = mk("UIListLayout", scrl, {Padding=UDim.new(0,4), HorizontalAlignment=Enum.HorizontalAlignment.Center})
@@ -87,12 +85,14 @@ return function(plr, CFG)
         b.MouseButton1Down:Connect(function() tw(b, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size=ud2(0.85,0,0,18)}) end)
         local u=function() tw(b, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size=ud2(0.92,0,0,20)}) end; b.MouseButton1Up:Connect(u); b.MouseLeave:Connect(u); table.insert(btns, b); return b
     end
-    bSpd1,bSpd2,bJmp,bNc,bHb,bLag,bInv,bFb,bEsp,bCesp,bInst,bSpdo,bZm,bWrn,bRst = sB("S1","SPEED BOOST 1"),sB("S2","DYNAMIC SPD"),sB("JP","JUMP POWER"),sB("NC","NOCLIP"),sB("HB","HITBOX OFF"),sB("LS","LAG SWITCH"),sB("IV","INVISIBLE"),sB("FB","FULLBRIGHT"),sB("ESP","ESP CHAMS"),sB("CESP","CUSTOM ESP"),sB("IN","INSTANT INTERACT"),sB("SPD","SPEEDOMETER"),sB("ZM","UNLIMITED ZOOM"),sB("WRN","PROXIMITY WARNING"),sB("RST","SET SPAWN")
+    
+    -- "PROXIMITY WARNING" shortened to "PROXIMITY WARN" below
+    bSpd1,bSpd2,bJmp,bNc,bHb,bLag,bInv,bFb,bEsp,bCesp,bInst,bSpdo,bZm,bWrn,bRst = sB("S1","SPEED BOOST 1"),sB("S2","DYNAMIC SPD"),sB("JP","JUMP POWER"),sB("NC","NOCLIP"),sB("HB","HITBOX OFF"),sB("LS","LAG SWITCH"),sB("IV","INVISIBLE"),sB("FB","FULLBRIGHT"),sB("ESP","ESP CHAMS"),sB("CESP","CUSTOM ESP"),sB("IN","INSTANT INTERACT"),sB("SPD","SPEEDOMETER"),sB("ZM","UNLIMITED ZOOM"),sB("WRN","PROXIMITY WARN"),sB("RST","SET SPAWN")
+    
     spdoLbl=mk("TextLabel", main, {Size=ud2(1,-10,0,12), Position=ud2(0,5,1,-34), Text="Speed: 0 studs/s", BackgroundTransparency=1, TextColor3=c3(255,255,255), Font=Enum.Font.GothamBold, TextSize=8, TextTransparency=1, Visible=false})
     stLbl=mk("TextLabel", main, {Size=ud2(1,-10,0,12), Position=ud2(0,5,1,-22), Text="Ready", BackgroundTransparency=1, TextColor3=CFG.SECONDARY_TEXT_COLOR, Font=Enum.Font.Gotham, TextSize=8, TextTransparency=1})
     sigLbl=mk("TextLabel", main, {Size=ud2(1,0,0,10), Position=ud2(0,0,1,-10), Text="The Script of Stuffs", BackgroundTransparency=1, TextColor3=CFG.SECONDARY_TEXT_COLOR, Font=Enum.Font.Gotham, TextSize=7, TextTransparency=1})
 
-    -- UI INTERNAL ANIMATION HELPERS
     local function shwUi(vis, mSzX, mSzY) main.Visible=vis; if vis then tw(main, tSmth, {Size=ud2(0,mSzX,0,mSzY)}, true) end end
     local function fdMnu(a, c) tw(logo, tFast, {ImageTransparency=a}); tw(tLbl, tFast, {TextTransparency=a}); tw(bCls, tFast, {TextTransparency=a}); tw(bMin, tFast, {TextTransparency=a}, c) end
     local function setA(a) tw(spdoLbl,tFast,{TextTransparency=a}); tw(stLbl,tFast,{TextTransparency=a}); tw(sigLbl,tFast,{TextTransparency=a==0 and 0.5 or 1}) end
@@ -103,7 +103,6 @@ return function(plr, CFG)
     local function cnfEx(v) tw(cnfLbl,tFast,{TextTransparency=v}); tw(bYes,tFast,{TextTransparency=v}); tw(bNo,tFast,{TextTransparency=v}); tw(bYes.Background,tFast,{BackgroundTransparency=v}); tw(bNo.Background,tFast,{BackgroundTransparency=v}); tw(bYes.Background.UIStroke,tFast,{Transparency=v}); tw(bNo.Background.UIStroke,tFast,{Transparency=v==0 and 1 or 1}) end
     local function inEx(v) tw(inBox,tFast,{TextTransparency=v}); tw(bSrch,tFast,{TextTransparency=v}); tw(bCnc,tFast,{TextTransparency=v}); tw(bSrch.Background,tFast,{BackgroundTransparency=v}); tw(bCnc.Background,tFast,{BackgroundTransparency=v}); tw(bSrch.Background.UIStroke,tFast,{Transparency=v}); tw(bCnc.Background.UIStroke,tFast,{Transparency=1}) end
 
-    -- PUBLIC API FUNCTIONS
     local UI_API = {}
 
     function UI_API.playAnim()
@@ -117,13 +116,8 @@ return function(plr, CFG)
         else tgBtns(1); task.wait(0.15); tw(main, tSmth, {Size=ud2(0,120,0,22)}, true); scrl.Visible, cScrl.Visible = false, true; shwUi(true, 120, 115); tgCfg(0) end; setA(0)
     end
 
-    function UI_API.minimize()
-        trnMnu(scrl, nil, nil, nil); minFrm.Position, minFrm.Visible = ud2(0.5,-30,0,-50), true; tw(minFrm, tBnc, {Position=ud2(0.5,-30,0,10)})
-    end
-
-    function UI_API.maximize()
-        tw(minFrm, tSmth, {Position=ud2(0.5,-30,0,-50)}, true); minFrm.Visible=false; unTrn(main)
-    end
+    function UI_API.minimize() trnMnu(scrl, nil, nil, nil); minFrm.Position, minFrm.Visible = ud2(0.5,-30,0,-50), true; tw(minFrm, tBnc, {Position=ud2(0.5,-30,0,10)}) end
+    function UI_API.maximize() tw(minFrm, tSmth, {Position=ud2(0.5,-30,0,-50)}, true); minFrm.Visible=false; unTrn(main) end
 
     function UI_API.showConfirm() trnMnu(scrl, nil, cnfFrm, ud2(0,150,0,80)); cnfEx(0) end
     function UI_API.hideConfirm() cnfEx(1); task.wait(0.2); unTrn(cnfFrm) end
@@ -149,9 +143,7 @@ return function(plr, CFG)
         if isActive then
             lagPrt = mk("Part", workspace, {Name="LagSwitchOriginIndicator", Shape=Enum.PartType.Ball, Size=v3(2.5,2.5,2.5), CFrame=hrpCFrame, CanCollide=false, Anchored=true, Transparency=0.4, Material=Enum.Material.Neon, BrickColor=BrickColor.new("Bright yellow")})
             mk("Highlight", lagPrt, {Name="IndicatorESP", FillColor=c3(255,255,0), OutlineColor=c3(255,255,255), FillTransparency=0.5})
-        else
-            if lagPrt then lagPrt:Destroy() lagPrt=nil end
-        end
+        elseif lagPrt then lagPrt:Destroy() lagPrt=nil end
     end
 
     function UI_API.setWarningGui(hrp, isVisible)
@@ -159,8 +151,7 @@ return function(plr, CFG)
             local b=mk("BillboardGui", nil, {Name="ProximityWarning", Size=ud2(0,50,0,50), StudsOffset=v3(0,3.5,0), AlwaysOnTop=true, Enabled=false})
             mk("TextLabel", b, {Size=ud2(1,0,1,0), BackgroundTransparency=1, Text="!", TextColor3=c3(255,0,0), Font=Enum.Font.GothamBold, TextSize=45, TextStrokeTransparency=0, TextStrokeColor3=c3(0,0,0)}); wrnGui=b
         end
-        wrnGui.Parent, wrnGui.Adornee = hrp, wrnGui
-        wrnGui.Enabled = isVisible
+        wrnGui.Parent, wrnGui.Adornee = hrp, wrnGui; wrnGui.Enabled = isVisible
     end
     function UI_API.clearWarningGui() if wrnGui then wrnGui:Destroy() wrnGui=nil end end
 
@@ -171,9 +162,7 @@ return function(plr, CFG)
     function UI_API.addCustomHighlight(obj)
         if not obj:FindFirstChild("CustomEspH") then table.insert(cEspHL, mk("Highlight", obj, {Name="CustomEspH", FillColor=c3(0,255,255), OutlineColor=c3(255,255,255), FillTransparency=0.5, OutlineTransparency=0.1, DepthMode=Enum.HighlightDepthMode.AlwaysOnTop})) end
     end
-    function UI_API.clearCustomHighlights()
-        for _, h in ipairs(cEspHL) do if h then h:Destroy() end end; cEspHL={}
-    end
+    function UI_API.clearCustomHighlights() for _, h in ipairs(cEspHL) do if h then h:Destroy() end end; cEspHL={} end
 
     function UI_API.drawPlayerEsp(p, c, tp, espState, dist, clr, sp, isOffscreen, vpCtr, bx, by)
         if espState>=1 and espState<=4 then

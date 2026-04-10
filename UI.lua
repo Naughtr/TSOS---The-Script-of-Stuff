@@ -34,7 +34,6 @@ return function(plr, CFG)
         return t 
     end
 
-    -- [Internal functions pVal, toStr, updBClr, stBAct, rndBClr remain the same...]
     local function toStr(v)
         if typeof(v)=="Color3" then return math.floor(v.R*255)..","..math.floor(v.G*255)..","..math.floor(v.B*255)
         elseif typeof(v)=="Vector3" then return v.X..","..v.Y..","..v.Z
@@ -110,19 +109,18 @@ return function(plr, CFG)
     
     bCls=mk("TextButton", tTab, {Size=ud2(0,14,0,14), AnchorPoint=Vector2.new(0,0.5), Position=ud2(1,-18,0.5,0), Text="×", TextTransparency=1, BackgroundTransparency=1, TextColor3=c3(255,255,255), Font=Enum.Font.GothamBold, TextSize=14, BorderSizePixel=0}); bMin=mk("TextButton", tTab, {Size=ud2(0,14,0,14), AnchorPoint=Vector2.new(0,0.5), Position=ud2(1,-34,0.5,0), Text="-", TextTransparency=1, BackgroundTransparency=1, TextColor3=c3(255,255,255), Font=Enum.Font.GothamBold, TextSize=14, BorderSizePixel=0})
     
-    -- MODIFIED: Adjusted size to 44px (20+4+20) to ensure two buttons fit perfectly
+    -- MODIFIED: Removed bottom padding entirely. The 44px view area will exactly fit two 20px buttons + one 4px gap.
     scrl = mk("ScrollingFrame", main, {Size=ud2(1,-16,0,44), Position=ud2(0,8,0,36), BackgroundColor3=CFG.BACKGROUND_COLOR, ScrollBarThickness=2, CanvasSize=ud2(0,0,0,0), ScrollingDirection=Enum.ScrollingDirection.Y, ElasticBehavior=Enum.ElasticBehavior.Always})
-    local uiPad = mk("UIPadding", scrl, {PaddingTop=UDim.new(0,0), PaddingBottom=UDim.new(0,4)}) -- Reset top padding for math
+    local uiPad = mk("UIPadding", scrl, {PaddingTop=UDim.new(0,0), PaddingBottom=UDim.new(0,0)})
     local uiLL = mk("UIListLayout", scrl, {Padding=UDim.new(0,4), HorizontalAlignment=Enum.HorizontalAlignment.Center})
     
     uiLL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
         scrl.CanvasSize = ud2(0, 0, 0, uiLL.AbsoluteContentSize.Y)
     end)
 
-    -- MODIFIED: Adjusted size to 44px
-    cScrl = mk("ScrollingFrame", main, {Name="ConfigFrame", Size=ud2(1,-16,0,44), Position=ud2(0,8,0,36), BackgroundColor3=CFG.BACKGROUND_COLOR, ScrollBarThickness=2, CanvasSize=ud2(0,0,0,0), Visible=false, ScrollingDirection=Enum.ScrollingDirection.Y, ElasticBehavior=Enum.ElasticBehavior.Always}); local cfLL=mk("UIListLayout", cScrl, {Padding=UDim.new(0,4), HorizontalAlignment=Enum.HorizontalAlignment.Center}); mk("UIPadding", cScrl, {PaddingTop=UDim.new(0,0), PaddingBottom=UDim.new(0,4)})
+    -- MODIFIED: Removed bottom padding entirely.
+    cScrl = mk("ScrollingFrame", main, {Name="ConfigFrame", Size=ud2(1,-16,0,44), Position=ud2(0,8,0,36), BackgroundColor3=CFG.BACKGROUND_COLOR, ScrollBarThickness=2, CanvasSize=ud2(0,0,0,0), Visible=false, ScrollingDirection=Enum.ScrollingDirection.Y, ElasticBehavior=Enum.ElasticBehavior.Always}); local cfLL=mk("UIListLayout", cScrl, {Padding=UDim.new(0,4), HorizontalAlignment=Enum.HorizontalAlignment.Center}); mk("UIPadding", cScrl, {PaddingTop=UDim.new(0,0), PaddingBottom=UDim.new(0,0)})
     
-    -- [The loop for creating Config labels remains the same...]
     local sNm={SPEED_1_KEY="SPD 1",SPEED_2_KEY="SPD 2",LAG_SWITCH_KEY="LAG KEY",INVISIBILITY_KEY="INVIS",FULLBRIGHT_KEY="F-BRIGHT",ESP_CHAMS_KEY="ESP KEY",RESET_KEY="RESET",NOCLIP_KEY="NOCLIP",SPEEDOMETER_KEY="SPEEDO",ZOOM_KEY="ZOOM",WARNING_KEY="WARN",CUSTOM_ESP_KEY="C-ESP",BOOSTED_SPEED_1="BST SPD 1",DYNAMIC_SPEED_ADDITIVE="DYN ADD",DEFAULT_JUMP="DEF JUMP",BOOSTED_JUMP="BST JUMP",HITBOX_SIZE="HB SIZE",MAX_ZOOM="MAX ZM",MIN_ZOOM="MIN ZM",WARNING_DISTANCE="WARN DIST",INVISIBILITY_POSITION="INVIS POS",RESET_COOLDOWN="RST CD",BACKGROUND_COLOR="BG CLR",ACCENT_COLOR="ACC CLR",TAB_COLOR="TAB CLR",BORDER_COLOR="BRDR CLR",TEXT_COLOR="TXT CLR",SECONDARY_TEXT_COLOR="SEC TXT",ESP_MAX_DISTANCE="ESP MAX",ESP_NEAR_DISTANCE="ESP NEAR"}
     local pK, oK = {"BOOSTED_SPEED_1","DYNAMIC_SPEED_ADDITIVE","DEFAULT_JUMP","BOOSTED_JUMP","HITBOX_SIZE","MAX_ZOOM","MIN_ZOOM","WARNING_DISTANCE"}, {}; for k,_ in pairs(CFG) do if not table.find(pK,k) then table.insert(oK,k) end end; table.sort(oK); local sk={}; for _,k in ipairs(pK) do table.insert(sk,k) end; for _,k in ipairs(oK) do table.insert(sk,k) end
     for _, k in ipairs(sk) do 
@@ -147,34 +145,60 @@ return function(plr, CFG)
     stLbl=mk("TextLabel", main, {Size=ud2(1,-10,0,12), Position=ud2(0,5,1,-22), Text="Ready", BackgroundTransparency=1, TextColor3=CFG.SECONDARY_TEXT_COLOR, Font=Enum.Font.Gotham, TextSize=8, TextTransparency=1})
     sigLbl=mk("TextLabel", main, {Size=ud2(1,0,0,10), Position=ud2(0,0,1,-10), Text="The Script of Stuffs", BackgroundTransparency=1, TextColor3=CFG.SECONDARY_TEXT_COLOR, Font=Enum.Font.Gotham, TextSize=7, TextTransparency=1})
 
-    -- NEW: Scrolling Snap logic
-    local function handleSnap(f: ScrollingFrame)
-        local buttonHeight = 20
-        local padding = 4
-        local step = buttonHeight + padding
-        
-        local currentY = f.CanvasPosition.Y
-        local nearestIndex = math.round(currentY / step)
-        local targetY = nearestIndex * step
-        
-        -- Clamp to ensure we don't snap past the canvas end
-        local maxScroll = math.max(0, f.CanvasSize.Y.Offset - f.AbsoluteSize.Y)
-        targetY = math.clamp(targetY, 0, maxScroll)
-        
-        TS:Create(f, snapInfo, {CanvasPosition = Vector2.new(0, targetY)}):Play()
-    end
+    -- NEW: Improved Scrolling Snap logic utilizing momentum tracking
+    local function setupSnapping(f: ScrollingFrame)
+        local isTouching = false
+        local lastScroll = tick()
+        local snapTween = nil
 
-    -- Connect snap to events
-    for _, f in ipairs({scrl, cScrl}) do
+        -- Track when the user is actively interacting with the frame
+        f.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                isTouching = true
+                if snapTween then snapTween:Cancel() end
+            end
+        end)
+
         f.InputEnded:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                task.wait(0.05) -- Wait a frame for physics to settle
-                handleSnap(f)
+                isTouching = false
+                lastScroll = tick()
+            end
+        end)
+
+        -- Track underlying momentum shifts
+        f:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
+            if isTouching then return end
+            lastScroll = tick()
+        end)
+
+        -- Execute the snap only after the momentum stops
+        RunService.RenderStepped:Connect(function()
+            if not isTouching and tick() - lastScroll > 0.1 and tick() - lastScroll < 0.15 then
+                lastScroll = 0 -- Disarm trigger
+                
+                local step = 24 -- 20 (button height) + 4 (padding gap)
+                local currentY = f.CanvasPosition.Y
+                local nearestIndex = math.round(currentY / step)
+                local targetY = nearestIndex * step
+                
+                -- Clamp to guarantee we don't snap past the maximum scroll bounds
+                local maxScroll = math.max(0, f.CanvasSize.Y.Offset - f.AbsoluteSize.Y)
+                targetY = math.clamp(targetY, 0, maxScroll)
+                
+                -- Snap only if we aren't perfectly aligned already
+                if math.abs(currentY - targetY) > 0.5 then
+                    snapTween = TS:Create(f, snapInfo, {CanvasPosition = Vector2.new(0, targetY)})
+                    snapTween:Play()
+                end
             end
         end)
     end
 
-    -- [Rest of the API functions remain unchanged...]
+    -- Connect snapping safely isolated from interaction blocks
+    setupSnapping(scrl)
+    setupSnapping(cScrl)
+
     local function shwUi(vis, mSzX, mSzY) main.Visible=vis; if vis then tw(main, tSmth, {Size=ud2(0,mSzX,0,mSzY)}, true) end end
     local function fdMnu(a, c) tw(logo, tFast, {ImageTransparency=a}); tw(tLbl, tFast, {TextTransparency=a}); tw(bCls, tFast, {TextTransparency=a}); tw(bMin, tFast, {TextTransparency=a}, c) end
     local function setA(a) tw(spdoLbl,tFast,{TextTransparency=a}); tw(stLbl,tFast,{TextTransparency=a}); tw(sigLbl,tFast,{TextTransparency=a==0 and 0.5 or 1}) end

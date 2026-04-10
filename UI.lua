@@ -2,6 +2,7 @@
 local TS = game:GetService("TweenService")
 local SG = game:GetService("StarterGui")
 local Deb = game:GetService("Debris")
+local RunService = game:GetService("RunService")
 
 local v3, c3, ud2 = Vector3.new, Color3.fromRGB, UDim2.new
 local tFast = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
@@ -30,6 +31,41 @@ return function(plr, CFG)
         return t 
     end
 
+    -- [NEW: SNAP SCROLLING LOGIC]
+    local function setupSnapScrolling(frame: ScrollingFrame, itemHeight: number, padding: number)
+        local snapStep = (itemHeight + padding) * 2 -- Snap every 2 buttons
+        local snapTween: Tween?
+        
+        local function snap()
+            local currentY = frame.CanvasPosition.Y
+            local nearestIndex = math.round(currentY / snapStep)
+            local targetY = nearestIndex * snapStep
+            
+            -- Clamp to ensure we don't snap past the canvas bounds
+            local maxY = math.max(0, frame.CanvasSize.Y.Offset - frame.AbsoluteWindowSize.Y)
+            targetY = math.clamp(targetY, 0, maxY)
+
+            if snapTween then snapTween:Cancel() end
+            snapTween = TS:Create(frame, tSmth, {CanvasPosition = Vector2.new(0, targetY)})
+            snapTween:Play()
+        end
+
+        -- Trigger snap when user stops interacting
+        frame.InputEnded:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                task.wait(0.1) -- Small delay to allow momentum to settle slightly
+                snap()
+            end
+        end)
+        
+        -- Mouse wheel support
+        frame:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
+            if not isAnimating and not frame:IsFocused() then
+                -- Optional: Add a debounce here if you want it to snap less aggressively while wheeling
+            end
+        end)
+    end
+
     local function toStr(v)
         if typeof(v)=="Color3" then return math.floor(v.R*255)..","..math.floor(v.G*255)..","..math.floor(v.B*255)
         elseif typeof(v)=="Vector3" then return v.X..","..v.Y..","..v.Z
@@ -45,32 +81,26 @@ return function(plr, CFG)
         return o
     end
 
-    -- MODIFIED: Added 'act' parameter to toggle gradient visibility based on state
     local function updBClr(b, c, act)
         local bg = b:FindFirstChild("Background"); if not bg then return end
         bg.BackgroundColor3 = c
-        
-        -- Handle Background Gradient
         local gr = bg:FindFirstChildOfClass("UIGradient")
         if gr then 
-            gr.Enabled = not act -- Disable gradient if active (flat color)
+            gr.Enabled = not act
             gr.Color = ColorSequence.new(c, c3(15,15,15)) 
         end
-        
-        -- Handle Stroke Gradient
         local st = bg:FindFirstChildOfClass("UIStroke")
         if st then 
-            st.Color = act and c or c3(255,255,255) -- Match border to color if flat, else white
+            st.Color = act and c or c3(255,255,255)
             local sg = st:FindFirstChildOfClass("UIGradient")
             if sg then 
-                sg.Enabled = not act -- Disable border gradient if active
+                sg.Enabled = not act
                 local h,s,v = c:ToHSV()
                 sg.Color = ColorSequence.new(Color3.fromHSV(h, s*0.8, math.min(v*1.4, 1)), c3(0,0,0)) 
             end
         end
     end
 
-    -- MODIFIED: Pass the 'act' (active) state to updBClr
     local function stBAct(b, act) 
         if act then 
             updBClr(b, Color3.fromHSV(math.random(), 0.75, 0.45), true) 
@@ -115,11 +145,18 @@ return function(plr, CFG)
     local uiPad = mk("UIPadding", scrl, {PaddingTop=UDim.new(0,4), PaddingBottom=UDim.new(0,4)})
     local uiLL = mk("UIListLayout", scrl, {Padding=UDim.new(0,4), HorizontalAlignment=Enum.HorizontalAlignment.Center})
     
+    -- Initialize Snapping for Main List
+    setupSnapScrolling(scrl, 20, 4)
+
     uiLL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
         scrl.CanvasSize = ud2(0, 0, 0, uiLL.AbsoluteContentSize.Y + 10)
     end)
 
     cScrl = mk("ScrollingFrame", main, {Name="ConfigFrame", Size=ud2(1,-16,0,52), Position=ud2(0,8,0,36), BackgroundColor3=CFG.BACKGROUND_COLOR, ScrollBarThickness=2, CanvasSize=ud2(0,0,0,0), Visible=false, ScrollingDirection=Enum.ScrollingDirection.Y, ElasticBehavior=Enum.ElasticBehavior.Always}); local cfLL=mk("UIListLayout", cScrl, {Padding=UDim.new(0,4), HorizontalAlignment=Enum.HorizontalAlignment.Center}); mk("UIPadding", cScrl, {PaddingTop=UDim.new(0,4), PaddingBottom=UDim.new(0,4)})
+    
+    -- Initialize Snapping for Config List
+    setupSnapScrolling(cScrl, 20, 4)
+
     local sNm={SPEED_1_KEY="SPD 1",SPEED_2_KEY="SPD 2",LAG_SWITCH_KEY="LAG KEY",INVISIBILITY_KEY="INVIS",FULLBRIGHT_KEY="F-BRIGHT",ESP_CHAMS_KEY="ESP KEY",RESET_KEY="RESET",NOCLIP_KEY="NOCLIP",SPEEDOMETER_KEY="SPEEDO",ZOOM_KEY="ZOOM",WARNING_KEY="WARN",CUSTOM_ESP_KEY="C-ESP",BOOSTED_SPEED_1="BST SPD 1",DYNAMIC_SPEED_ADDITIVE="DYN ADD",DEFAULT_JUMP="DEF JUMP",BOOSTED_JUMP="BST JUMP",HITBOX_SIZE="HB SIZE",MAX_ZOOM="MAX ZM",MIN_ZOOM="MIN ZM",WARNING_DISTANCE="WARN DIST",INVISIBILITY_POSITION="INVIS POS",RESET_COOLDOWN="RST CD",BACKGROUND_COLOR="BG CLR",ACCENT_COLOR="ACC CLR",TAB_COLOR="TAB CLR",BORDER_COLOR="BRDR CLR",TEXT_COLOR="TXT CLR",SECONDARY_TEXT_COLOR="SEC TXT",ESP_MAX_DISTANCE="ESP MAX",ESP_NEAR_DISTANCE="ESP NEAR"}
     local pK, oK = {"BOOSTED_SPEED_1","DYNAMIC_SPEED_ADDITIVE","DEFAULT_JUMP","BOOSTED_JUMP","HITBOX_SIZE","MAX_ZOOM","MIN_ZOOM","WARNING_DISTANCE"}, {}; for k,_ in pairs(CFG) do if not table.find(pK,k) then table.insert(oK,k) end end; table.sort(oK); local sk={}; for _,k in ipairs(pK) do table.insert(sk,k) end; for _,k in ipairs(oK) do table.insert(sk,k) end
     for _, k in ipairs(sk) do local r=mk("Frame", cScrl, {Size=ud2(0.92,0,0,20), BackgroundTransparency=1}); local l=mk("TextLabel", r, {Size=ud2(0.5,0,1,0), BackgroundTransparency=1, Text=sNm[k] or k, TextColor3=CFG.TEXT_COLOR, TextXAlignment=Enum.TextXAlignment.Center, Font=Enum.Font.Gotham, TextSize=7, TextTransparency=1, Active=true})
@@ -141,6 +178,7 @@ return function(plr, CFG)
     stLbl=mk("TextLabel", main, {Size=ud2(1,-10,0,12), Position=ud2(0,5,1,-22), Text="Ready", BackgroundTransparency=1, TextColor3=CFG.SECONDARY_TEXT_COLOR, Font=Enum.Font.Gotham, TextSize=8, TextTransparency=1})
     sigLbl=mk("TextLabel", main, {Size=ud2(1,0,0,10), Position=ud2(0,0,1,-10), Text="The Script of Stuffs", BackgroundTransparency=1, TextColor3=CFG.SECONDARY_TEXT_COLOR, Font=Enum.Font.Gotham, TextSize=7, TextTransparency=1})
 
+    -- [Rest of the API and Helper functions remain unchanged]
     local function shwUi(vis, mSzX, mSzY) main.Visible=vis; if vis then tw(main, tSmth, {Size=ud2(0,mSzX,0,mSzY)}, true) end end
     local function fdMnu(a, c) tw(logo, tFast, {ImageTransparency=a}); tw(tLbl, tFast, {TextTransparency=a}); tw(bCls, tFast, {TextTransparency=a}); tw(bMin, tFast, {TextTransparency=a}, c) end
     local function setA(a) tw(spdoLbl,tFast,{TextTransparency=a}); tw(stLbl,tFast,{TextTransparency=a}); tw(sigLbl,tFast,{TextTransparency=a==0 and 0.5 or 1}) end
@@ -242,7 +280,8 @@ return function(plr, CFG)
             local b=mk("BillboardGui", nil, {Name="ProximityWarning", Size=ud2(0,50,0,50), StudsOffset=v3(0,3.5,0), AlwaysOnTop=true, Enabled=false})
             mk("TextLabel", b, {Size=ud2(1,0,1,0), BackgroundTransparency=1, Text="!", TextColor3=c3(255,0,0), Font=Enum.Font.GothamBold, TextSize=45, TextStrokeTransparency=0, TextStrokeColor3=c3(0,0,0)}); wrnGui=b
         end
-        wrnGui.Parent, wrnGui.Adornee = hrp, wrnGui
+        wrnGui.Adornee = hrp
+        wrnGui.Parent = hrp
         wrnGui.Enabled = isVisible
     end
     function UI_API.clearWarningGui() if wrnGui then wrnGui:Destroy() wrnGui=nil end end

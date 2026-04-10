@@ -2,13 +2,14 @@
 local TS = game:GetService("TweenService")
 local SG = game:GetService("StarterGui")
 local Deb = game:GetService("Debris")
-local RunService = game:GetService("RunService") -- Added for smooth snapping checks
+local RunService = game:GetService("RunService")
 
 local v3, c3, ud2 = Vector3.new, Color3.fromRGB, UDim2.new
 local tFast = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local tBnc = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 local tBncIn = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In)
 local tSmth = TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
+local tSnap = TweenInfo.new(0.2, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
 
 return function(plr, CFG)
     local gui, main, tTabBg, minFrm, cnfFrm, inpFrm, inBox, bSrch, bCnc, bMax, scrl, cScrl, bSpd1, bSpd2, bJmp, bNc, bHb, bLag, bInv, bFb, bEsp, bCesp, bInst, bSpdo, bZm, bWrn, bRst, bCls, bYes, bNo, bMin, sigLbl, stLbl, spdoLbl, logo, tLbl, cnfLbl, ttFrm, ttLbl
@@ -31,47 +32,65 @@ return function(plr, CFG)
         return t 
     end
 
-    -- [NEW SNAPPING LOGIC HELPERS]
-    local lastScrollTime = 0
-    local isSnapping = false
+    -- --- SNAPPING LOGIC ---
+    local function setupSnapping(frame, layout)
+        local lastScrollTime = os.clock()
+        local snapping = false
 
-    local function snapToNearest(frame, layout)
-        if isSnapping then return end
-        isSnapping = true
-        
-        local canvasY = frame.CanvasPosition.Y
-        local buttonHeight = 20 -- Fixed height from sB function
-        local padding = layout.Padding.Offset
-        local totalStep = buttonHeight + padding
-        
-        -- Calculate nearest index
-        local nearestIndex = math.round(canvasY / totalStep)
-        local targetY = nearestIndex * totalStep
-        
-        -- Smooth Tween to position
-        local tween = TS:Create(frame, tSmth, {CanvasPosition = Vector2.new(0, targetY)})
-        tween:Play()
-        tween.Completed:Wait()
-        isSnapping = false
+        frame:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
+            if not snapping then
+                lastScrollTime = os.clock()
+            end
+        end)
+
+        RunService.Heartbeat:Connect(function()
+            if not snapping and os.clock() - lastScrollTime > 0.1 then
+                local yPos = frame.CanvasPosition.Y
+                local btnHeight = 20 + layout.Padding.Offset
+                local targetY = math.round(yPos / btnHeight) * btnHeight
+                
+                if math.abs(yPos - targetY) > 1 then
+                    snapping = true
+                    local tween = TS:Create(frame, tSnap, {CanvasPosition = Vector2.new(0, targetY)})
+                    tween:Play()
+                    tween.Completed:Wait()
+                    snapping = false
+                    lastScrollTime = os.clock()
+                end
+            end
+        end)
+    end
+    -- ----------------------
+
+    local function toStr(v)
+        if typeof(v)=="Color3" then return math.floor(v.R*255)..","..math.floor(v.G*255)..","..math.floor(v.B*255)
+        elseif typeof(v)=="Vector3" then return v.X..","..v.Y..","..v.Z
+        elseif typeof(v)=="EnumItem" then return v.Name end return tostring(v)
     end
 
-    -- MODIFIED: Added 'act' parameter to toggle gradient visibility based on state
+    local function pVal(o, s)
+        if type(o)=="number" then return tonumber(s) or o
+        elseif type(o)=="string" then return s
+        elseif typeof(o)=="EnumItem" then local sc, r = pcall(function() return Enum.KeyCode[s] end); return sc and r or o
+        elseif typeof(o)=="Color3" then local r,g,b = s:match("(%d+)%s*,%s*(%d+)%s*,%s*(%d+)"); if r then return c3(tonumber(r),tonumber(g),tonumber(b)) end
+        elseif typeof(o)=="Vector3" then local x,y,z = s:match("([%-%d%.]+)%s*,%s*([%-%d%.]+)%s*,%s*([%-%d%.]+)"); if x then return v3(tonumber(x),tonumber(y),tonumber(z)) end end
+        return o
+    end
+
     local function updBClr(b, c, act)
         local bg = b:FindFirstChild("Background"); if not bg then return end
         bg.BackgroundColor3 = c
-        
         local gr = bg:FindFirstChildOfClass("UIGradient")
         if gr then 
-            gr.Enabled = not act 
+            gr.Enabled = not act
             gr.Color = ColorSequence.new(c, c3(15,15,15)) 
         end
-        
         local st = bg:FindFirstChildOfClass("UIStroke")
         if st then 
             st.Color = act and c or c3(255,255,255)
             local sg = st:FindFirstChildOfClass("UIGradient")
             if sg then 
-                sg.Enabled = not act 
+                sg.Enabled = not act
                 local h,s,v = c:ToHSV()
                 sg.Color = ColorSequence.new(Color3.fromHSV(h, s*0.8, math.min(v*1.4, 1)), c3(0,0,0)) 
             end
@@ -99,7 +118,7 @@ return function(plr, CFG)
     local function crStylB(p, sz, pos, tx, clr)
         local b=mk("TextButton", p, {Size=sz, Position=pos, Text=tx, BackgroundTransparency=1, TextColor3=c3(255,255,255), TextTransparency=1, Font=Enum.Font.GothamBold, TextSize=10, ZIndex=2})
         local bg=mk("Frame", b, {Name="Background", Size=ud2(1,0,1,0), BackgroundColor3=clr, BackgroundTransparency=1, BorderSizePixel=0, ZIndex=1})
-        mk("UICorner", bg, {CornerRadius=UDim.new(0,4)}); mk("UIPadding", bg, {PaddingLeft=UDim.new(0,0)}); mk("UIGradient", bg, {Color=ColorSequence.new(clr,c3(15,15,15))})
+        mk("UICorner", bg, {CornerRadius=UDim.new(0,4)}); mk("UIGradient", bg, {Color=ColorSequence.new(clr,c3(15,15,15))})
         local str=mk("UIStroke", bg, {Thickness=1, ApplyStrokeMode=Enum.ApplyStrokeMode.Border, Color=c3(255,255,255), Transparency=1})
         local h,s,v=clr:ToHSV(); mk("UIGradient", str, {Color=ColorSequence.new(Color3.fromHSV(h,s*0.8,math.min(v*1.4,1)),c3(0,0,0))}); return b
     end
@@ -114,42 +133,24 @@ return function(plr, CFG)
     tTabBg = mk("Frame", main, {Name="TitleTabBg", Size=ud2(1,0,0,22), BackgroundColor3=CFG.TAB_COLOR, BorderSizePixel=0}); mk("UICorner", tTabBg, {CornerRadius=UDim.new(0,10)}); mk("Frame", tTabBg, {Name="BottomBorder", Size=ud2(1,0,0,1), Position=ud2(0,0,1,-1), BackgroundColor3=CFG.BORDER_COLOR, BorderSizePixel=0, ZIndex=3}); local tTab=mk("Frame", tTabBg, {Name="TitleTab", Size=ud2(1,0,1,0), BackgroundTransparency=1, BorderSizePixel=0})
     
     logo=mk("ImageButton", tTab, {Name="Logo", Size=ud2(0,12,0,12), AnchorPoint=Vector2.new(0,0.5), Position=ud2(0,8,0.5,0), BackgroundTransparency=1, ImageTransparency=1, Image="rbxassetid://10793494685"})
-    tLbl=mk("TextLabel", tTab, {Name="Title", Size=ud2(1,-40,1,0), AnchorPoint=Vector2.new(0,0.5), Position=ud2(0,24,0.5,0), TextTransparency=1, Text="TSOS", BackgroundTransparency=1, TextColor3=c3(255,255,255), Font=Enum.Font.GothamBold, TextSize=10, TextXAlignment=Enum.TextXAlignment.Left})
+    tLbl=mk("TextLabel", tTab, {Name="Title", Size=ud2(1,-40,1,0), AnchorPoint=Vector2.new(0,24,0.5,0), TextTransparency=1, Text="TSOS", BackgroundTransparency=1, TextColor3=c3(255,255,255), Font=Enum.Font.GothamBold, TextSize=10, TextXAlignment=Enum.TextXAlignment.Left})
     
     bCls=mk("TextButton", tTab, {Size=ud2(0,14,0,14), AnchorPoint=Vector2.new(0,0.5), Position=ud2(1,-18,0.5,0), Text="×", TextTransparency=1, BackgroundTransparency=1, TextColor3=c3(255,255,255), Font=Enum.Font.GothamBold, TextSize=14, BorderSizePixel=0}); bMin=mk("TextButton", tTab, {Size=ud2(0,14,0,14), AnchorPoint=Vector2.new(0,0.5), Position=ud2(1,-34,0.5,0), Text="-", TextTransparency=1, BackgroundTransparency=1, TextColor3=c3(255,255,255), Font=Enum.Font.GothamBold, TextSize=14, BorderSizePixel=0})
     
-    -- MODIFIED: Adjusted size to 44 (20px button * 2 + 4px padding * 1) to fit 2 buttons perfectly
+    -- MODIFIED: Size adjusted to 44px (exactly 2 buttons @ 20px + 4px padding)
     scrl = mk("ScrollingFrame", main, {Size=ud2(1,-16,0,44), Position=ud2(0,8,0,36), BackgroundColor3=CFG.BACKGROUND_COLOR, ScrollBarThickness=0, CanvasSize=ud2(0,0,0,0), ScrollingDirection=Enum.ScrollingDirection.Y, ElasticBehavior=Enum.ElasticBehavior.Always})
     local uiPad = mk("UIPadding", scrl, {PaddingTop=UDim.new(0,0), PaddingBottom=UDim.new(0,0)})
     local uiLL = mk("UIListLayout", scrl, {Padding=UDim.new(0,4), HorizontalAlignment=Enum.HorizontalAlignment.Center})
     
-    -- [NEW: Snapping Implementation]
-    scrl:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
-        if isSnapping then return end
-        lastScrollTime = tick()
-        task.delay(0.15, function()
-            if tick() - lastScrollTime >= 0.15 then
-                snapToNearest(scrl, uiLL)
-            end
-        end)
-    end)
+    setupSnapping(scrl, uiLL)
 
     uiLL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
         scrl.CanvasSize = ud2(0, 0, 0, uiLL.AbsoluteContentSize.Y)
     end)
 
-    -- MODIFIED: Applied same size/padding logic to Config scroll
     cScrl = mk("ScrollingFrame", main, {Name="ConfigFrame", Size=ud2(1,-16,0,44), Position=ud2(0,8,0,36), BackgroundColor3=CFG.BACKGROUND_COLOR, ScrollBarThickness=0, CanvasSize=ud2(0,0,0,0), Visible=false, ScrollingDirection=Enum.ScrollingDirection.Y, ElasticBehavior=Enum.ElasticBehavior.Always}); local cfLL=mk("UIListLayout", cScrl, {Padding=UDim.new(0,4), HorizontalAlignment=Enum.HorizontalAlignment.Center}); mk("UIPadding", cScrl, {PaddingTop=UDim.new(0,0), PaddingBottom=UDim.new(0,0)})
     
-    cScrl:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
-        if isSnapping then return end
-        lastScrollTime = tick()
-        task.delay(0.15, function()
-            if tick() - lastScrollTime >= 0.15 then
-                snapToNearest(cScrl, cfLL)
-            end
-        end)
-    end)
+    setupSnapping(cScrl, cfLL)
 
     local sNm={SPEED_1_KEY="SPD 1",SPEED_2_KEY="SPD 2",LAG_SWITCH_KEY="LAG KEY",INVISIBILITY_KEY="INVIS",FULLBRIGHT_KEY="F-BRIGHT",ESP_CHAMS_KEY="ESP KEY",RESET_KEY="RESET",NOCLIP_KEY="NOCLIP",SPEEDOMETER_KEY="SPEEDO",ZOOM_KEY="ZOOM",WARNING_KEY="WARN",CUSTOM_ESP_KEY="C-ESP",BOOSTED_SPEED_1="BST SPD 1",DYNAMIC_SPEED_ADDITIVE="DYN ADD",DEFAULT_JUMP="DEF JUMP",BOOSTED_JUMP="BST JUMP",HITBOX_SIZE="HB SIZE",MAX_ZOOM="MAX ZM",MIN_ZOOM="MIN ZM",WARNING_DISTANCE="WARN DIST",INVISIBILITY_POSITION="INVIS POS",RESET_COOLDOWN="RST CD",BACKGROUND_COLOR="BG CLR",ACCENT_COLOR="ACC CLR",TAB_COLOR="TAB CLR",BORDER_COLOR="BRDR CLR",TEXT_COLOR="TXT CLR",SECONDARY_TEXT_COLOR="SEC TXT",ESP_MAX_DISTANCE="ESP MAX",ESP_NEAR_DISTANCE="ESP NEAR"}
     local pK, oK = {"BOOSTED_SPEED_1","DYNAMIC_SPEED_ADDITIVE","DEFAULT_JUMP","BOOSTED_JUMP","HITBOX_SIZE","MAX_ZOOM","MIN_ZOOM","WARNING_DISTANCE"}, {}; for k,_ in pairs(CFG) do if not table.find(pK,k) then table.insert(oK,k) end end; table.sort(oK); local sk={}; for _,k in ipairs(pK) do table.insert(sk,k) end; for _,k in ipairs(oK) do table.insert(sk,k) end
@@ -172,7 +173,7 @@ return function(plr, CFG)
     stLbl=mk("TextLabel", main, {Size=ud2(1,-10,0,12), Position=ud2(0,5,1,-22), Text="Ready", BackgroundTransparency=1, TextColor3=CFG.SECONDARY_TEXT_COLOR, Font=Enum.Font.Gotham, TextSize=8, TextTransparency=1})
     sigLbl=mk("TextLabel", main, {Size=ud2(1,0,0,10), Position=ud2(0,0,1,-10), Text="The Script of Stuffs", BackgroundTransparency=1, TextColor3=CFG.SECONDARY_TEXT_COLOR, Font=Enum.Font.Gotham, TextSize=7, TextTransparency=1})
 
-    -- MODIFIED: Adjusted UI heights to 110 to account for the smaller scroll area
+    -- MODIFIED: UI Height updated to 110 to account for new scroll size
     local function shwUi(vis, mSzX, mSzY) main.Visible=vis; if vis then tw(main, tSmth, {Size=ud2(0,mSzX,0,mSzY)}, true) end end
     local function fdMnu(a, c) tw(logo, tFast, {ImageTransparency=a}); tw(tLbl, tFast, {TextTransparency=a}); tw(bCls, tFast, {TextTransparency=a}); tw(bMin, tFast, {TextTransparency=a}, c) end
     local function setA(a) tw(spdoLbl,tFast,{TextTransparency=a}); tw(stLbl,tFast,{TextTransparency=a}); tw(sigLbl,tFast,{TextTransparency=a==0 and 0.5 or 1}) end
@@ -180,7 +181,9 @@ return function(plr, CFG)
     local function unTrn(t) tw(t, tBncIn, {Size=ud2(0,0,0,0), Position=ud2(0.5,0,0.5,0)}, true); t.Visible=false; local cx=main.Position.X; main.Size, main.Position, main.Visible = ud2(0,0,0,22), ud2(cx.Scale,cx.Offset,main.Position.Y.Scale,main.Position.Y.Offset), true; tw(main, tSmth, {Size=ud2(0,120,0,22), Position=ud2(cx.Scale, cx.Offset-60, main.Position.Y.Scale, main.Position.Y.Offset)}, true); fdMnu(0, true); shwUi(true, 120, 110); setA(0) end
     local function tgBtns(a, d) for _,b in ipairs(btns) do tw(b, tFast, {TextTransparency=a}); local bg=b:FindFirstChild("Background"); if bg then tw(bg, tFast, {BackgroundTransparency=a}); local st=bg:FindFirstChildOfClass("UIStroke"); if st then tw(st, tFast, {Transparency=a}) end end; if d then task.wait(d) end end end
     local function tgCfg(a) for _,r in ipairs(cScrl:GetChildren()) do if r:IsA("Frame") then local l,bg=r:FindFirstChildOfClass("TextLabel"),r:FindFirstChild("Frame"); if l then tw(l,tFast,{TextTransparency=a}) end; if bg then tw(bg,tFast,{BackgroundTransparency=a}); local s,bx=bg:FindFirstChildOfClass("UIStroke"),bg:FindFirstChildOfClass("TextBox"); if s then tw(s,tFast,{Transparency=a}) end; if bx then tw(bx,tFast,{TextTransparency=a}) end end end end end
-    
+    local function cnfEx(v) tw(cnfLbl,tFast,{TextTransparency=v}); tw(bYes,tFast,{TextTransparency=v}); tw(bNo,tFast,{TextTransparency=v}); tw(bYes.Background,tFast,{BackgroundTransparency=v}); tw(bNo.Background,tFast,{BackgroundTransparency=v}); tw(bYes.Background.UIStroke,tFast,{Transparency=v}); tw(bNo.Background.UIStroke,tFast,{Transparency=1}) end
+    local function inEx(v) tw(inBox,tFast,{TextTransparency=v}); tw(bSrch,tFast,{TextTransparency=v}); tw(bCnc,tFast,{TextTransparency=v}); tw(bSrch.Background,tFast,{BackgroundTransparency=v}); tw(bCnc.Background,tFast,{BackgroundTransparency=v}); tw(bSrch.Background.UIStroke,tFast,{Transparency=v}); tw(bCnc.Background.UIStroke,tFast,{Transparency=1}) end
+
     local UI_API = {}
 
     function UI_API.playAnim()
@@ -197,31 +200,138 @@ return function(plr, CFG)
         else tgBtns(1); task.wait(0.15); tw(main, tSmth, {Size=ud2(0,120,0,22)}, true); scrl.Visible, cScrl.Visible = false, true; shwUi(true, 120, 110); tgCfg(0) end; setA(0)
         isAnimating = false
     end
+
+    function UI_API.minimize()
+        if isAnimating then return end
+        bMin.Visible, bCls.Visible = false, false 
+        trnMnu(scrl, nil, nil, nil)
+        minFrm.Position, minFrm.Visible = ud2(0.5,-30,0,-50), true
+        tw(minFrm, tBnc, {Position=ud2(0.5,-30,0,10)}, true)
+        bMax.Active = true 
+    end
+
+    function UI_API.maximize()
+        if isAnimating then return end
+        bMax.Active = false 
+        tw(minFrm, tSmth, {Position=ud2(0.5,-30,0,-50)}, true)
+        minFrm.Visible=false
+        unTrn(main)
+        bMin.Visible, bCls.Visible = true, true
+    end
+
+    function UI_API.showConfirm() 
+        if isAnimating then return end
+        bMin.Visible, bCls.Visible = false, false 
+        trnMnu(scrl, nil, cnfFrm, ud2(0,150,0,80)); cnfEx(0) 
+    end
     
-    -- Rest of functions (minimize, maximize, etc.) stay the same...
-    function UI_API.minimize() if isAnimating then return end bMin.Visible, bCls.Visible = false, false; trnMnu(scrl, nil, nil, nil); minFrm.Position, minFrm.Visible = ud2(0.5,-30,0,-50), true; tw(minFrm, tBnc, {Position=ud2(0.5,-30,0,10)}, true); bMax.Active = true end
-    function UI_API.maximize() if isAnimating then return end bMax.Active = false; tw(minFrm, tSmth, {Position=ud2(0.5,-30,0,-50)}, true); minFrm.Visible=false; unTrn(main); bMin.Visible, bCls.Visible = true, true end
-    function UI_API.showConfirm() if isAnimating then return end bMin.Visible, bCls.Visible = false, false; trnMnu(scrl, nil, cnfFrm, ud2(0,150,0,80)); cnfEx(0) end
-    function UI_API.hideConfirm() if isAnimating then return end cnfEx(1); task.wait(0.2); unTrn(cnfFrm); bMin.Visible, bCls.Visible = true, true end
-    function UI_API.hideConfirmHard() if isAnimating then return end cnfEx(1); task.wait(0.2); tw(cnfFrm, tBncIn, {Size=ud2(0,0,0,0), Position=ud2(0.5,0,0.5,0)}, true) end
-    function UI_API.showInput(ph, tx, btnTx) if isAnimating then return end bMin.Visible, bCls.Visible = false, false; trnMnu(scrl, nil, inpFrm, ud2(0,160,0,75)); inBox.PlaceholderText, inBox.Text, bSrch.Text = ph, tx, btnTx; inEx(0) end
-    function UI_API.hideInput() if isAnimating then return end inEx(1); task.wait(0.2); unTrn(inpFrm); bMin.Visible, bCls.Visible = true, true end
+    function UI_API.hideConfirm() 
+        if isAnimating then return end
+        cnfEx(1); task.wait(0.2); unTrn(cnfFrm)
+        bMin.Visible, bCls.Visible = true, true 
+    end
+    
+    function UI_API.hideConfirmHard() 
+        if isAnimating then return end
+        cnfEx(1); task.wait(0.2); tw(cnfFrm, tBncIn, {Size=ud2(0,0,0,0), Position=ud2(0.5,0,0.5,0)}, true) 
+    end
+    
+    function UI_API.showInput(ph, tx, btnTx) 
+        if isAnimating then return end
+        bMin.Visible, bCls.Visible = false, false
+        trnMnu(scrl, nil, inpFrm, ud2(0,160,0,75)); inBox.PlaceholderText, inBox.Text, bSrch.Text = ph, tx, btnTx; inEx(0) 
+    end
+    
+    function UI_API.hideInput() 
+        if isAnimating then return end
+        inEx(1); task.wait(0.2); unTrn(inpFrm) 
+        bMin.Visible, bCls.Visible = true, true
+    end
+
     function UI_API.setStatus(tx, clr) stLbl.Text = tx; stLbl.TextColor3 = clr or CFG.SECONDARY_TEXT_COLOR end
     function UI_API.setButtonState(b, txt, isActive) if txt then b.Text = txt end; stBAct(b, isActive) end
     function UI_API.updateSpeedometerText(txt) spdoLbl.Text = txt end
     function UI_API.toggleSpeedometerVisibility(isVisible) stLbl.Visible = not isVisible; spdoLbl.Visible = isVisible; spdoLbl.Position = isVisible and ud2(0,5,1,-22) or ud2(0,5,1,-34) end
     function UI_API.sendNotif(title, text, dur) SG:SetCore("SendNotification", {Title=title, Text=text, Duration=dur}) end
     function UI_API.rndBClr() rndBClr() end
-    function UI_API.playSpawnEffect(pos) local p=mk("Part", workspace, {Size=v3(1,1,1), Position=pos, Anchored=true, CanCollide=false, Transparency=1}); local a=mk("Attachment", p); local pe=mk("ParticleEmitter", a, {Color=ColorSequence.new(c3(46,204,113),c3(255,255,255)), LightEmission=1, Size=NumberSequence.new({NumberSequenceKeypoint.new(0,2),NumberSequenceKeypoint.new(1,0)}), Texture="rbxassetid://2442214466", Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,0),NumberSequenceKeypoint.new(1,1)}), Lifetime=NumberRange.new(0.5,1), Speed=NumberRange.new(5,15), SpreadAngle=Vector2.new(360,360)}); pe:Emit(30); Deb:AddItem(p,2) end
-    function UI_API.setLagVisual(hrpCFrame, isActive) if isActive then lagPrt = mk("Part", workspace, {Name="LagSwitchOriginIndicator", Shape=Enum.PartType.Ball, Size=v3(2.5,2.5,2.5), CFrame=hrpCFrame, CanCollide=false, Anchored=true, Transparency=0.4, Material=Enum.Material.Neon, BrickColor=BrickColor.new("Bright yellow")}); mk("Highlight", lagPrt, {Name="IndicatorESP", FillColor=c3(255,255,0), OutlineColor=c3(255,255,255), FillTransparency=0.5}) else if lagPrt then lagPrt:Destroy() lagPrt=nil end end end
-    function UI_API.setWarningGui(hrp, isVisible) if not wrnGui then local b=mk("BillboardGui", nil, {Name="ProximityWarning", Size=ud2(0,50,0,50), StudsOffset=v3(0,3.5,0), AlwaysOnTop=true, Enabled=false}); mk("TextLabel", b, {Size=ud2(1,0,1,0), BackgroundTransparency=1, Text="!", TextColor3=c3(255,0,0), Font=Enum.Font.GothamBold, TextSize=45, TextStrokeTransparency=0, TextStrokeColor3=c3(0,0,0)}); wrnGui=b end; wrnGui.Parent, wrnGui.Adornee = hrp, wrnGui; wrnGui.Enabled = isVisible end
+
+    function UI_API.playSpawnEffect(pos)
+        local p=mk("Part", workspace, {Size=v3(1,1,1), Position=pos, Anchored=true, CanCollide=false, Transparency=1}); local a=mk("Attachment", p)
+        local pe=mk("ParticleEmitter", a, {Color=ColorSequence.new(c3(46,204,113),c3(255,255,255)), LightEmission=1, Size=NumberSequence.new({NumberSequenceKeypoint.new(0,2),NumberSequenceKeypoint.new(1,0)}), Texture="rbxassetid://2442214466", Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,0),NumberSequenceKeypoint.new(1,1)}), Lifetime=NumberRange.new(0.5,1), Speed=NumberRange.new(5,15), SpreadAngle=Vector2.new(360,360)}); pe:Emit(30); Deb:AddItem(p,2)
+    end
+
+    function UI_API.setLagVisual(hrpCFrame, isActive)
+        if isActive then
+            lagPrt = mk("Part", workspace, {Name="LagSwitchOriginIndicator", Shape=Enum.PartType.Ball, Size=v3(2.5,2.5,2.5), CFrame=hrpCFrame, CanCollide=false, Anchored=true, Transparency=0.4, Material=Enum.Material.Neon, BrickColor=BrickColor.new("Bright yellow")})
+            mk("Highlight", lagPrt, {Name="IndicatorESP", FillColor=c3(255,255,0), OutlineColor=c3(255,255,255), FillTransparency=0.5})
+        else
+            if lagPrt then lagPrt:Destroy() lagPrt=nil end
+        end
+    end
+
+    function UI_API.setWarningGui(hrp, isVisible)
+        if not wrnGui then
+            local b=mk("BillboardGui", nil, {Name="ProximityWarning", Size=ud2(0,50,0,50), StudsOffset=v3(0,3.5,0), AlwaysOnTop=true, Enabled=false})
+            mk("TextLabel", b, {Size=ud2(1,0,1,0), BackgroundTransparency=1, Text="!", TextColor3=c3(255,0,0), Font=Enum.Font.GothamBold, TextSize=45, TextStrokeTransparency=0, TextStrokeColor3=c3(0,0,0)}); wrnGui=b
+        end
+        wrnGui.Parent, wrnGui.Adornee = hrp, wrnGui
+        wrnGui.Enabled = isVisible
+    end
     function UI_API.clearWarningGui() if wrnGui then wrnGui:Destroy() wrnGui=nil end end
-    function UI_API.setCharacterTransparency(char, alpha) for _, d in char:GetDescendants() do if d.Name~="HumanoidRootPart" and (d:IsA("BasePart") or d:IsA("Decal")) then d.Transparency = alpha end end end
-    function UI_API.addCustomHighlight(obj) if not obj:FindFirstChild("CustomEspH") then table.insert(cEspHL, mk("Highlight", obj, {Name="CustomEspH", FillColor=c3(0,255,255), OutlineColor=c3(255,255,255), FillTransparency=0.5, OutlineTransparency=0.1, DepthMode=Enum.HighlightDepthMode.AlwaysOnTop})) end end
-    function UI_API.clearCustomHighlights() for _, h in ipairs(cEspHL) do if h then h:Destroy() end end; cEspHL={} end
-    function UI_API.drawPlayerEsp(p, c, tp, espState, dist, clr, sp, isOffscreen, vpCtr, bx, by) if espState>=1 and espState<=4 then if not espHL[p] or espHL[p].Parent~=c then if espHL[p] then espHL[p]:Destroy() end; espHL[p] = mk("Highlight", c, {Name="EspChams", FillTransparency=0.7, OutlineTransparency=0.2, OutlineColor=c3(255,255,255), FillColor=clr}) else espHL[p].FillColor=clr end elseif espHL[p] then espHL[p]:Destroy(); espHL[p]=nil end; if espState>=1 and espState<=3 then local txl=p.Name.."\n["..dist.." studs]"; if not espTg[p] or espTg[p].Parent~=tp then if espTg[p] then espTg[p]:Destroy() end; local b=mk("BillboardGui", tp, {Name="EspNametag", AlwaysOnTop=true, Size=ud2(0,120,0,30), MaxDistance=math.huge, Adornee=tp}); mk("TextLabel", b, {Name="Label", Size=ud2(1,0,1,0), BackgroundTransparency=1, Text=txl, TextColor3=clr, TextStrokeTransparency=0, TextStrokeColor3=c3(0,0,0), Font=Enum.Font.GothamBold, TextSize=10}); espTg[p]=b else espTg[p].Label.Text, espTg[p].Label.TextColor3 = txl, clr end elseif espTg[p] then espTg[p]:Destroy(); espTg[p]=nil end; if isOffscreen then if not espOff[p] then espOff[p]=mk("TextLabel", gui, {Name="OffScreenLabel", Size=ud2(0,120,0,30), AnchorPoint=Vector2.new(0.5,0.5), BackgroundTransparency=1, Font=Enum.Font.GothamBold, TextSize=10, TextStrokeTransparency=0, TextStrokeColor3=c3(0,0,0)}) end; local l = espOff[p]; l.Text, l.TextColor3 = p.Name.."\n["..dist.." studs]", clr; local off = Vector2.new(sp.X, sp.Y) - vpCtr; if sp.Z < 0 then off = -off end; if off.Magnitude < 0.001 then off = Vector2.new(0, 1) end; local dir = off.Unit; local scale = math.min(bx / math.abs(dir.X), by / math.abs(dir.Y)); local pos = vpCtr + (dir * scale); l.Position, l.Visible = ud2(0, pos.X, 0, pos.Y), true elseif espOff[p] then espOff[p].Visible=false end end
-    function UI_API.clearPlayerEsp(p) if espHL[p] then espHL[p]:Destroy() espHL[p]=nil end; if espTg[p] then espTg[p]:Destroy() espTg[p]=nil end; if espOff[p] then espOff[p]:Destroy() espOff[p]=nil end end
-    function UI_API.clearAllEsp() for _, h in pairs(espHL) do if h then h:Destroy() end end; espHL={}; for _, t in pairs(espTg) do if t then t:Destroy() end end; espTg={}; for _, l in pairs(espOff) do if l then l:Destroy() end end; espOff={} end
+
+    function UI_API.setCharacterTransparency(char, alpha)
+        for _, d in char:GetDescendants() do if d.Name~="HumanoidRootPart" and (d:IsA("BasePart") or d:IsA("Decal")) then d.Transparency = alpha end end
+    end
+
+    function UI_API.addCustomHighlight(obj)
+        if not obj:FindFirstChild("CustomEspH") then table.insert(cEspHL, mk("Highlight", obj, {Name="CustomEspH", FillColor=c3(0,255,255), OutlineColor=c3(255,255,255), FillTransparency=0.5, OutlineTransparency=0.1, DepthMode=Enum.HighlightDepthMode.AlwaysOnTop})) end
+    end
+    function UI_API.clearCustomHighlights()
+        for _, h in ipairs(cEspHL) do if h then h:Destroy() end end; cEspHL={}
+    end
+
+    function UI_API.drawPlayerEsp(p, c, tp, espState, dist, clr, sp, isOffscreen, vpCtr, bx, by)
+        if espState>=1 and espState<=4 then
+            if not espHL[p] or espHL[p].Parent~=c then
+                if espHL[p] then espHL[p]:Destroy() end
+                espHL[p] = mk("Highlight", c, {Name="EspChams", FillTransparency=0.7, OutlineTransparency=0.2, OutlineColor=c3(255,255,255), FillColor=clr})
+            else espHL[p].FillColor=clr end
+        elseif espHL[p] then espHL[p]:Destroy(); espHL[p]=nil end
+
+        if espState>=1 and espState<=3 then
+            local txl=p.Name.."\n["..dist.." studs]"
+            if not espTg[p] or espTg[p].Parent~=tp then
+                if espTg[p] then espTg[p]:Destroy() end
+                local b=mk("BillboardGui", tp, {Name="EspNametag", AlwaysOnTop=true, Size=ud2(0,120,0,30), MaxDistance=math.huge, Adornee=tp})
+                mk("TextLabel", b, {Name="Label", Size=ud2(1,0,1,0), BackgroundTransparency=1, Text=txl, TextColor3=clr, TextStrokeTransparency=0, TextStrokeColor3=c3(0,0,0), Font=Enum.Font.GothamBold, TextSize=10})
+                espTg[p]=b
+            else espTg[p].Label.Text, espTg[p].Label.TextColor3 = txl, clr end
+        elseif espTg[p] then espTg[p]:Destroy(); espTg[p]=nil end
+
+        if isOffscreen then
+            if not espOff[p] then espOff[p]=mk("TextLabel", gui, {Name="OffScreenLabel", Size=ud2(0,120,0,30), AnchorPoint=Vector2.new(0.5,0.5), BackgroundTransparency=1, Font=Enum.Font.GothamBold, TextSize=10, TextStrokeTransparency=0, TextStrokeColor3=c3(0,0,0)}) end
+            local l = espOff[p]; l.Text, l.TextColor3 = p.Name.."\n["..dist.." studs]", clr
+            local off = Vector2.new(sp.X, sp.Y) - vpCtr
+            if sp.Z < 0 then off = -off end
+            if off.Magnitude < 0.001 then off = Vector2.new(0, 1) end
+            local dir = off.Unit
+            local scale = math.min(bx / math.abs(dir.X), by / math.abs(dir.Y))
+            local pos = vpCtr + (dir * scale)
+            l.Position, l.Visible = ud2(0, pos.X, 0, pos.Y), true
+        elseif espOff[p] then espOff[p].Visible=false end
+    end
+
+    function UI_API.clearPlayerEsp(p)
+        if espHL[p] then espHL[p]:Destroy() espHL[p]=nil end
+        if espTg[p] then espTg[p]:Destroy() espTg[p]=nil end
+        if espOff[p] then espOff[p]:Destroy() espOff[p]=nil end
+    end
+    function UI_API.clearAllEsp()
+        for _, h in pairs(espHL) do if h then h:Destroy() end end; espHL={}
+        for _, t in pairs(espTg) do if t then t:Destroy() end end; espTg={}
+        for _, l in pairs(espOff) do if l then l:Destroy() end end; espOff={}
+    end
+
     function UI_API.destroyGui() gui:Destroy() end
 
     return {

@@ -14,9 +14,24 @@ return function(plr, CFG)
     local btns, bOrigClr = {}, {}
     local espHL, espTg, espOff, cEspHL = {}, {}, {}, {}
     local lagPrt, wrnGui = nil, nil
+    
+    -- Animation state tracker
+    local isAnimating = false
 
     local function mk(c, p, pr) local i = Instance.new(c); for k,v in pairs(pr or {}) do i[k]=v end; if p then i.Parent=p end; return i end
-    local function tw(o, i, p, w) local t = TS:Create(o, i, p); t:Play(); if w then t.Completed:Wait() end; return t end
+    
+    -- Updated tween helper to manage global animation state
+    local function tw(o, i, p, w) 
+        local t = TS:Create(o, i, p)
+        if w then isAnimating = true end
+        t:Play()
+        if w then 
+            t.Completed:Wait() 
+            isAnimating = false 
+        end
+        return t 
+    end
+
     local function toStr(v)
         if typeof(v)=="Color3" then return math.floor(v.R*255)..","..math.floor(v.G*255)..","..math.floor(v.B*255)
         elseif typeof(v)=="Vector3" then return v.X..","..v.Y..","..v.Z
@@ -81,9 +96,9 @@ return function(plr, CFG)
     local function sB(nm, tx)
         local b=mk("TextButton", scrl, {Name=nm, Size=ud2(0.92,0,0,20), Text=tx, BackgroundTransparency=1, TextColor3=c3(255,255,255), TextTransparency=1, Font=Enum.Font.GothamBold, TextSize=10, ZIndex=2})
         local bg=mk("Frame", b, {Name="Background", Size=ud2(1,0,1,0), BackgroundColor3=c3(45,45,45), BackgroundTransparency=1, BorderSizePixel=0, ZIndex=1})
-        mk("UICorner", bg, {CornerRadius=UDim.new(0,4)}); mk("UIGradient", bg, {Rotation=0}); local st=mk("UIStroke", bg, {Thickness=1, ApplyStrokeMode=Enum.ApplyStrokeMode.Border, Color=c3(255,255,255), Transparency=1}); mk("UIGradient", st, {Rotation=0})
-        b.MouseButton1Down:Connect(function() tw(b, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size=ud2(0.85,0,0,18)}) end)
-        local u=function() tw(b, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size=ud2(0.92,0,0,20)}) end; b.MouseButton1Up:Connect(u); b.MouseLeave:Connect(u); table.insert(btns, b); return b
+        mk("UICorner", bg, {CornerRadius=UDim.new(0,4)}); mk("UIPadding", bg, {PaddingLeft=UDim.new(0,0)}); mk("UIGradient", bg, {Rotation=0}); local st=mk("UIStroke", bg, {Thickness=1, ApplyStrokeMode=Enum.ApplyStrokeMode.Border, Color=c3(255,255,255), Transparency=1}); mk("UIGradient", st, {Rotation=0})
+        b.MouseButton1Down:Connect(function() if isAnimating then return end tw(b, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size=ud2(0.85,0,0,18)}) end)
+        local u=function() if isAnimating then return end tw(b, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size=ud2(0.92,0,0,20)}) end; b.MouseButton1Up:Connect(u); b.MouseLeave:Connect(u); table.insert(btns, b); return b
     end
 
     bSpd1,bSpd2,bJmp,bNc,bHb,bLag,bInv,bFb,bEsp,bCesp,bInst,bSpdo,bZm,bWrn,bRst = sB("S1","SPEED BOOST 1"),sB("S2","DYNAMIC SPD"),sB("JP","JUMP POWER"),sB("NC","NOCLIP"),sB("HB","HITBOX OFF"),sB("LS","LAG SWITCH"),sB("IV","INVISIBLE"),sB("FB","FULLBRIGHT"),sB("ESP","ESP CHAMS"),sB("CESP","CUSTOM ESP"),sB("IN","INSTANT INTERACT"),sB("SPD","SPEEDOMETER"),sB("ZM","UNLIMITED ZOOM"),sB("WRN","PROXIMITY WARN"),sB("RST","SET SPAWN")
@@ -104,17 +119,22 @@ return function(plr, CFG)
     local UI_API = {}
 
     function UI_API.playAnim()
+        if isAnimating then return end
         local s=mk("TextLabel", gui, {Size=ud2(1,0,1,0), BackgroundTransparency=1, Text="TSOS", TextColor3=c3(255,255,255), Font=Enum.Font.GothamBold, TextSize=100, ZIndex=100}); task.wait(4); tw(s, tFast, {TextTransparency=1}, true); s:Destroy()
         main.Visible, main.Size, main.Position = true, ud2(0,0,0,22), ud2(0.5,0,0.5,-59); tw(main, tSmth, {Size=ud2(0,120,0,22), Position=ud2(0.5,-60,0.5,-59)}, true); fdMnu(0, true); shwUi(true, 120, 118); tgBtns(0, 0.05); setA(0)
     end
 
     function UI_API.toggleConfigMenu(isOpen)
+        if isAnimating then return end
         tw(logo, tBnc, {Rotation=logo.Rotation+360}); setA(1); task.wait(0.1)
+        isAnimating = true -- Manual override for multi-step logic
         if not isOpen then tgCfg(1); task.wait(0.15); tw(main, tSmth, {Size=ud2(0,120,0,22)}, true); cScrl.Visible, scrl.Visible = false, true; shwUi(true, 120, 115); tgBtns(0)
         else tgBtns(1); task.wait(0.15); tw(main, tSmth, {Size=ud2(0,120,0,22)}, true); scrl.Visible, cScrl.Visible = false, true; shwUi(true, 120, 115); tgCfg(0) end; setA(0)
+        isAnimating = false
     end
 
     function UI_API.minimize()
+        if isAnimating then return end
         bMin.Visible, bCls.Visible = false, false 
         trnMnu(scrl, nil, nil, nil)
         minFrm.Position, minFrm.Visible = ud2(0.5,-30,0,-50), true
@@ -123,6 +143,7 @@ return function(plr, CFG)
     end
 
     function UI_API.maximize()
+        if isAnimating then return end
         bMax.Active = false 
         tw(minFrm, tSmth, {Position=ud2(0.5,-30,0,-50)}, true)
         minFrm.Visible=false
@@ -131,23 +152,30 @@ return function(plr, CFG)
     end
 
     function UI_API.showConfirm() 
-        bMin.Visible, bCls.Visible = false, false -- Prevent interacting during confirm
+        if isAnimating then return end
+        bMin.Visible, bCls.Visible = false, false 
         trnMnu(scrl, nil, cnfFrm, ud2(0,150,0,80)); cnfEx(0) 
     end
     
     function UI_API.hideConfirm() 
+        if isAnimating then return end
         cnfEx(1); task.wait(0.2); unTrn(cnfFrm)
-        bMin.Visible, bCls.Visible = true, true -- Restore buttons
+        bMin.Visible, bCls.Visible = true, true 
     end
     
-    function UI_API.hideConfirmHard() cnfEx(1); task.wait(0.2); tw(cnfFrm, tBncIn, {Size=ud2(0,0,0,0), Position=ud2(0.5,0,0.5,0)}, true) end
+    function UI_API.hideConfirmHard() 
+        if isAnimating then return end
+        cnfEx(1); task.wait(0.2); tw(cnfFrm, tBncIn, {Size=ud2(0,0,0,0), Position=ud2(0.5,0,0.5,0)}, true) 
+    end
     
     function UI_API.showInput(ph, tx, btnTx) 
+        if isAnimating then return end
         bMin.Visible, bCls.Visible = false, false
         trnMnu(scrl, nil, inpFrm, ud2(0,160,0,75)); inBox.PlaceholderText, inBox.Text, bSrch.Text = ph, tx, btnTx; inEx(0) 
     end
     
     function UI_API.hideInput() 
+        if isAnimating then return end
         inEx(1); task.wait(0.2); unTrn(inpFrm) 
         bMin.Visible, bCls.Visible = true, true
     end

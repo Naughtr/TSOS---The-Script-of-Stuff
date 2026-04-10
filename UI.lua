@@ -55,14 +55,18 @@ return function(plr, CFG)
     cnfFrm = mk("Frame", gui, {Name="ConfirmFrame", Size=ud2(0,0,0,0), Position=ud2(0.5,0,0.5,0), BackgroundColor3=CFG.BACKGROUND_COLOR, BorderSizePixel=0, Visible=false, ClipsDescendants=true}); mk("UICorner", cnfFrm, {CornerRadius=UDim.new(0,8)}); mk("UIStroke", cnfFrm, {Color=CFG.BORDER_COLOR, Thickness=1}); cnfLbl=mk("TextLabel", cnfFrm, {Size=ud2(1,-10,0,40), Position=ud2(0,5,0,5), BackgroundTransparency=1, Text="Do you want to unload the script?", TextColor3=CFG.TEXT_COLOR, Font=Enum.Font.GothamBold, TextSize=10, TextWrapped=true, TextTransparency=1}); bYes=crStylB(cnfFrm, ud2(0.4,0,0,20), ud2(0.05,0,0.65,0), "YES", c3(231,76,60)); bNo=crStylB(cnfFrm, ud2(0.4,0,0,20), ud2(0.55,0,0.65,0), "NO", CFG.ACCENT_COLOR)
     inpFrm = mk("Frame", gui, {Name="InputFrame", Size=ud2(0,0,0,0), Position=ud2(0.5,0,0.5,0), BackgroundColor3=CFG.BACKGROUND_COLOR, BorderSizePixel=0, Visible=false, ClipsDescendants=true}); mk("UICorner", inpFrm, {CornerRadius=UDim.new(0,8)}); mk("UIStroke", inpFrm, {Color=CFG.BORDER_COLOR, Thickness=1}); inBox=mk("TextBox", inpFrm, {Size=ud2(1,-20,0,25), Position=ud2(0,10,0,10), BackgroundColor3=CFG.ACCENT_COLOR, TextColor3=CFG.TEXT_COLOR, Font=Enum.Font.Gotham, TextSize=10, PlaceholderText="Enter search keyword...", PlaceholderColor3=CFG.SECONDARY_TEXT_COLOR, Text="", TextTransparency=1}); mk("UICorner", inBox, {CornerRadius=UDim.new(0,4)}); mk("UIStroke", inBox, {Color=CFG.BORDER_COLOR, Thickness=1}); bSrch=crStylB(inpFrm, ud2(0.4,0,0,20), ud2(0.05,0,0.60,0), "SEARCH", c3(46,204,113)); bCnc=crStylB(inpFrm, ud2(0.4,0,0,20), ud2(0.55,0,0.60,0), "CANCEL", c3(231,76,60))
     tTabBg = mk("Frame", main, {Name="TitleTabBg", Size=ud2(1,0,0,22), BackgroundColor3=CFG.TAB_COLOR, BorderSizePixel=0}); mk("UICorner", tTabBg, {CornerRadius=UDim.new(0,10)}); mk("Frame", tTabBg, {Name="BottomBorder", Size=ud2(1,0,0,1), Position=ud2(0,0,1,-1), BackgroundColor3=CFG.BORDER_COLOR, BorderSizePixel=0, ZIndex=3}); local tTab=mk("Frame", tTabBg, {Name="TitleTab", Size=ud2(1,0,1,0), BackgroundTransparency=1, BorderSizePixel=0})
-    logo=mk("ImageButton", tTab, {Name="Logo", Size=ud2(0,12,0,12), AnchorPoint=Vector2.new(0,0.5), Position=ud2(0,8,0.5,0), BackgroundTransparency=1, ImageTransparency=1, Image="rbxassetid://10793494685"}); tLbl=mk("TextLabel", tTab, {Size=ud2(1,-35,1,0), AnchorPoint=Vector2.new(0,24,0.5,0), TextTransparency=1, Text="TSOS", BackgroundTransparency=1, TextColor3=c3(255,255,255), Font=Enum.Font.GothamBold, TextSize=10, TextXAlignment=Enum.TextXAlignment.Left}); bCls=mk("TextButton", tTab, {Size=ud2(0,14,0,14), AnchorPoint=Vector2.new(0,0.5), Position=ud2(1,-18,0.5,0), Text="×", TextTransparency=1, BackgroundTransparency=1, TextColor3=c3(255,255,255), Font=Enum.Font.GothamBold, TextSize=14, BorderSizePixel=0}); bMin=mk("TextButton", tTab, {Size=ud2(0,14,0,14), AnchorPoint=Vector2.new(0,0.5), Position=ud2(1,-34,0.5,0), Text="-", TextTransparency=1, BackgroundTransparency=1, TextColor3=c3(255,255,255), Font=Enum.Font.GothamBold, TextSize=14, BorderSizePixel=0})
+    
+    -- Fixed Title and Logo alignment
+    logo=mk("ImageButton", tTab, {Name="Logo", Size=ud2(0,12,0,12), AnchorPoint=Vector2.new(0,0.5), Position=ud2(0,8,0.5,0), BackgroundTransparency=1, ImageTransparency=1, Image="rbxassetid://10793494685"})
+    tLbl=mk("TextLabel", tTab, {Name="Title", Size=ud2(1,-40,1,0), AnchorPoint=Vector2.new(0,0.5), Position=ud2(0,24,0.5,0), TextTransparency=1, Text="TSOS", BackgroundTransparency=1, TextColor3=c3(255,255,255), Font=Enum.Font.GothamBold, TextSize=10, TextXAlignment=Enum.TextXAlignment.Left})
+    
+    bCls=mk("TextButton", tTab, {Size=ud2(0,14,0,14), AnchorPoint=Vector2.new(0,0.5), Position=ud2(1,-18,0.5,0), Text="×", TextTransparency=1, BackgroundTransparency=1, TextColor3=c3(255,255,255), Font=Enum.Font.GothamBold, TextSize=14, BorderSizePixel=0}); bMin=mk("TextButton", tTab, {Size=ud2(0,14,0,14), AnchorPoint=Vector2.new(0,0.5), Position=ud2(1,-34,0.5,0), Text="-", TextTransparency=1, BackgroundTransparency=1, TextColor3=c3(255,255,255), Font=Enum.Font.GothamBold, TextSize=14, BorderSizePixel=0})
     
     -- Main Scrolling Frame
     scrl = mk("ScrollingFrame", main, {Size=ud2(1,-16,0,52), Position=ud2(0,8,0,36), BackgroundColor3=CFG.BACKGROUND_COLOR, ScrollBarThickness=2, CanvasSize=ud2(0,0,0,0), ScrollingDirection=Enum.ScrollingDirection.Y, ElasticBehavior=Enum.ElasticBehavior.Always})
     local uiPad = mk("UIPadding", scrl, {PaddingTop=UDim.new(0,4), PaddingBottom=UDim.new(0,4)})
     local uiLL = mk("UIListLayout", scrl, {Padding=UDim.new(0,4), HorizontalAlignment=Enum.HorizontalAlignment.Center})
     
-    -- Dynamic CanvasSize Update (Simplified & Stabilized)
     uiLL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
         scrl.CanvasSize = ud2(0, 0, 0, uiLL.AbsoluteContentSize.Y + 10)
     end)
@@ -136,7 +140,6 @@ return function(plr, CFG)
     function UI_API.sendNotif(title, text, dur) SG:SetCore("SendNotification", {Title=title, Text=text, Duration=dur}) end
     function UI_API.rndBClr() rndBClr() end
 
-    -- VISUAL EFFECTS & GUI RENDERING (No game logic here)
     function UI_API.playSpawnEffect(pos)
         local p=mk("Part", workspace, {Size=v3(1,1,1), Position=pos, Anchored=true, CanCollide=false, Transparency=1}); local a=mk("Attachment", p)
         local pe=mk("ParticleEmitter", a, {Color=ColorSequence.new(c3(46,204,113),c3(255,255,255)), LightEmission=1, Size=NumberSequence.new({NumberSequenceKeypoint.new(0,2),NumberSequenceKeypoint.new(1,0)}), Texture="rbxassetid://2442214466", Transparency=NumberSequence.new({NumberSequenceKeypoint.new(0,0),NumberSequenceKeypoint.new(1,1)}), Lifetime=NumberRange.new(0.5,1), Speed=NumberRange.new(5,15), SpreadAngle=Vector2.new(360,360)}); pe:Emit(30); Deb:AddItem(p,2)
@@ -165,7 +168,6 @@ return function(plr, CFG)
         for _, d in char:GetDescendants() do if d.Name~="HumanoidRootPart" and (d:IsA("BasePart") or d:IsA("Decal")) then d.Transparency = alpha end end
     end
 
-    -- ESP RENDERING LOGIC
     function UI_API.addCustomHighlight(obj)
         if not obj:FindFirstChild("CustomEspH") then table.insert(cEspHL, mk("Highlight", obj, {Name="CustomEspH", FillColor=c3(0,255,255), OutlineColor=c3(255,255,255), FillTransparency=0.5, OutlineTransparency=0.1, DepthMode=Enum.HighlightDepthMode.AlwaysOnTop})) end
     end

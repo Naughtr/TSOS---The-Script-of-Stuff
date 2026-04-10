@@ -35,7 +35,7 @@ return function(plr, CFG)
         elseif typeof(v)=="Vector3" then return v.X..","..v.Y..","..v.Z
         elseif typeof(v)=="EnumItem" then return v.Name end return tostring(v)
     end
-    
+
     local function pVal(o, s)
         if type(o)=="number" then return tonumber(s) or o
         elseif type(o)=="string" then return s
@@ -45,37 +45,42 @@ return function(plr, CFG)
         return o
     end
 
-    -- MODIFIED: Added 'act' parameter to handle flat border logic
+    -- MODIFIED: Added 'act' parameter to toggle gradient visibility based on state
     local function updBClr(b, c, act)
-        local bg = b:FindFirstChild("Background"); if not bg then return end; bg.BackgroundColor3=c
-        local gr=bg:FindFirstChildOfClass("UIGradient"); if gr then gr.Color=ColorSequence.new(c,c3(15,15,15)) end
-        local st=bg:FindFirstChildOfClass("UIStroke")
+        local bg = b:FindFirstChild("Background"); if not bg then return end
+        bg.BackgroundColor3 = c
+        
+        -- Handle Background Gradient
+        local gr = bg:FindFirstChildOfClass("UIGradient")
+        if gr then 
+            gr.Enabled = not act -- Disable gradient if active (flat color)
+            gr.Color = ColorSequence.new(c, c3(15,15,15)) 
+        end
+        
+        -- Handle Stroke Gradient
+        local st = bg:FindFirstChildOfClass("UIStroke")
         if st then 
-            st.Color = act and c or c3(255,255,255) -- Set color to button color if active, white if not
+            st.Color = act and c or c3(255,255,255) -- Match border to color if flat, else white
             local sg = st:FindFirstChildOfClass("UIGradient")
-            if act then
-                if sg then sg:Destroy() end -- Remove gradient for flat look
-            else
-                if not sg then
-                    sg = mk("UIGradient", st)
-                end
-                local h,s,v=c:ToHSV()
-                sg.Color = ColorSequence.new(Color3.fromHSV(h,s*0.8,math.min(v*1.4,1)), c3(0,0,0))
+            if sg then 
+                sg.Enabled = not act -- Disable border gradient if active
+                local h,s,v = c:ToHSV()
+                sg.Color = ColorSequence.new(Color3.fromHSV(h, s*0.8, math.min(v*1.4, 1)), c3(0,0,0)) 
             end
         end
     end
 
-    -- MODIFIED: Passes 'act' boolean to updBClr
+    -- MODIFIED: Pass the 'act' (active) state to updBClr
     local function stBAct(b, act) 
         if act then 
-            updBClr(b, Color3.fromHSV(math.random(),0.75,0.45), true) 
+            updBClr(b, Color3.fromHSV(math.random(), 0.75, 0.45), true) 
         elseif bOrigClr[b] then 
             updBClr(b, bOrigClr[b], false) 
         end 
     end
 
     local function rndBClr() 
-        local h = math.random()
+        local h = math.random() 
         for _, b in ipairs(btns) do 
             h = (h + 0.618033988749895) % 1
             local c = Color3.fromHSV(h, 0.7, 0.4)
@@ -157,7 +162,7 @@ return function(plr, CFG)
     function UI_API.toggleConfigMenu(isOpen)
         if isAnimating then return end
         tw(logo, tBnc, {Rotation=logo.Rotation+360}); setA(1); task.wait(0.1)
-        isAnimating = true
+        isAnimating = true 
         if not isOpen then tgCfg(1); task.wait(0.15); tw(main, tSmth, {Size=ud2(0,120,0,22)}, true); cScrl.Visible, scrl.Visible = false, true; shwUi(true, 120, 115); tgBtns(0)
         else tgBtns(1); task.wait(0.15); tw(main, tSmth, {Size=ud2(0,120,0,22)}, true); scrl.Visible, cScrl.Visible = false, true; shwUi(true, 120, 115); tgCfg(0) end; setA(0)
         isAnimating = false

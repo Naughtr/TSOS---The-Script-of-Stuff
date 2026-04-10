@@ -110,32 +110,34 @@ return function(plr, CFG)
     bCls=mk("TextButton", tTab, {Size=ud2(0,14,0,14), AnchorPoint=Vector2.new(0,0.5), Position=ud2(1,-18,0.5,0), Text="×", TextTransparency=1, BackgroundTransparency=1, TextColor3=c3(255,255,255), Font=Enum.Font.GothamBold, TextSize=14, BorderSizePixel=0}); bMin=mk("TextButton", tTab, {Size=ud2(0,14,0,14), AnchorPoint=Vector2.new(0,0.5), Position=ud2(1,-34,0.5,0), Text="-", TextTransparency=1, BackgroundTransparency=1, TextColor3=c3(255,255,255), Font=Enum.Font.GothamBold, TextSize=14, BorderSizePixel=0})
     
     scrl = mk("ScrollingFrame", main, {Size=ud2(1,-16,0,44), Position=ud2(0,8,0,36), BackgroundColor3=CFG.BACKGROUND_COLOR, ScrollBarThickness=2, CanvasSize=ud2(0,0,0,0), ScrollingDirection=Enum.ScrollingDirection.Y, ElasticBehavior=Enum.ElasticBehavior.Always})
-    local uiPad = mk("UIPadding", scrl, {PaddingTop=UDim.new(0,0), PaddingBottom=UDim.new(0,4)})
+    -- ADJUSTED: Added Padding to prevent border clipping against the ScrollFrame edges
+    local uiPad = mk("UIPadding", scrl, {PaddingTop=UDim.new(0,2), PaddingBottom=UDim.new(0,4), PaddingLeft=UDim.new(0,2), PaddingRight=UDim.new(0,2)})
     local uiLL = mk("UIListLayout", scrl, {Padding=UDim.new(0,4), HorizontalAlignment=Enum.HorizontalAlignment.Center})
     
     uiLL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        scrl.CanvasSize = ud2(0, 0, 0, uiLL.AbsoluteContentSize.Y)
+        scrl.CanvasSize = ud2(0, 0, 0, uiLL.AbsoluteContentSize.Y + 4)
     end)
 
-    cScrl = mk("ScrollingFrame", main, {Name="ConfigFrame", Size=ud2(1,-16,0,44), Position=ud2(0,8,0,36), BackgroundColor3=CFG.BACKGROUND_COLOR, ScrollBarThickness=2, CanvasSize=ud2(0,0,0,0), Visible=false, ScrollingDirection=Enum.ScrollingDirection.Y, ElasticBehavior=Enum.ElasticBehavior.Always}); local cfLL=mk("UIListLayout", cScrl, {Padding=UDim.new(0,4), HorizontalAlignment=Enum.HorizontalAlignment.Center}); mk("UIPadding", cScrl, {PaddingTop=UDim.new(0,0), PaddingBottom=UDim.new(0,4)})
+    cScrl = mk("ScrollingFrame", main, {Name="ConfigFrame", Size=ud2(1,-16,0,44), Position=ud2(0,8,0,36), BackgroundColor3=CFG.BACKGROUND_COLOR, ScrollBarThickness=2, CanvasSize=ud2(0,0,0,0), Visible=false, ScrollingDirection=Enum.ScrollingDirection.Y, ElasticBehavior=Enum.ElasticBehavior.Always}); local cfLL=mk("UIListLayout", cScrl, {Padding=UDim.new(0,4), HorizontalAlignment=Enum.HorizontalAlignment.Center}); mk("UIPadding", cScrl, {PaddingTop=UDim.new(0,2), PaddingBottom=UDim.new(0,4), PaddingLeft=UDim.new(0,2), PaddingRight=UDim.new(0,2)})
     
     local sNm={SPEED_1_KEY="SPD 1",SPEED_2_KEY="SPD 2",LAG_SWITCH_KEY="LAG KEY",INVISIBILITY_KEY="INVIS",FULLBRIGHT_KEY="F-BRIGHT",ESP_CHAMS_KEY="ESP KEY",RESET_KEY="RESET",NOCLIP_KEY="NOCLIP",SPEEDOMETER_KEY="SPEEDO",ZOOM_KEY="ZOOM",WARNING_KEY="WARN",CUSTOM_ESP_KEY="C-ESP",BOOSTED_SPEED_1="BST SPD 1",DYNAMIC_SPEED_ADDITIVE="DYN ADD",DEFAULT_JUMP="DEF JUMP",BOOSTED_JUMP="BST JUMP",HITBOX_SIZE="HB SIZE",MAX_ZOOM="MAX ZM",MIN_ZOOM="MIN ZM",WARNING_DISTANCE="WARN DIST",INVISIBILITY_POSITION="INVIS POS",RESET_COOLDOWN="RST CD",BACKGROUND_COLOR="BG CLR",ACCENT_COLOR="ACC CLR",TAB_COLOR="TAB CLR",BORDER_COLOR="BRDR CLR",TEXT_COLOR="TXT CLR",SECONDARY_TEXT_COLOR="SEC TXT",ESP_MAX_DISTANCE="ESP MAX",ESP_NEAR_DISTANCE="ESP NEAR"}
     local pK, oK = {"BOOSTED_SPEED_1","DYNAMIC_SPEED_ADDITIVE","DEFAULT_JUMP","BOOSTED_JUMP","HITBOX_SIZE","MAX_ZOOM","MIN_ZOOM","WARNING_DISTANCE"}, {}; for k,_ in pairs(CFG) do if not table.find(pK,k) then table.insert(oK,k) end end; table.sort(oK); local sk={}; for _,k in ipairs(pK) do table.insert(sk,k) end; for _,k in ipairs(oK) do table.insert(sk,k) end
     for _, k in ipairs(sk) do 
-        local r=mk("Frame", cScrl, {Size=ud2(0.92,0,0,20), BackgroundTransparency=1}); 
+        local r=mk("Frame", cScrl, {Size=ud2(0.9,0,0,20), BackgroundTransparency=1}); 
         local l=mk("TextLabel", r, {Size=ud2(0.5,0,1,0), BackgroundTransparency=1, Text=sNm[k] or k, TextColor3=CFG.TEXT_COLOR, TextXAlignment=Enum.TextXAlignment.Center, Font=Enum.Font.Gotham, TextSize=7, TextTransparency=1, Active=true})
         local showTt=function() ttLbl.Text=k; ttFrm.AnchorPoint=Vector2.new(0.5,1); ttFrm.Position=ud2(0,tTabBg.AbsolutePosition.X+(tTabBg.AbsoluteSize.X/2),0,tTabBg.AbsolutePosition.Y-5); ttFrm.Visible=true end; l.MouseEnter:Connect(showTt); l.MouseLeave:Connect(function() ttFrm.Visible=false end); l.InputBegan:Connect(function(ip) if ip.UserInputType==Enum.UserInputType.Touch then showTt() end end); l.InputEnded:Connect(function(ip) if ip.UserInputType==Enum.UserInputType.Touch then ttFrm.Visible=false end end)
         local bb=mk("Frame", r, {Size=ud2(0.5,-4,1,0), Position=ud2(0.5,2,0,0), BackgroundColor3=CFG.ACCENT_COLOR, BackgroundTransparency=1, BorderSizePixel=0, ClipsDescendants=true}); mk("UICorner", bb, {CornerRadius=UDim.new(0,4)}); mk("UIStroke", bb, {Color=CFG.BORDER_COLOR, Thickness=1, Transparency=1}); local bx=mk("TextBox", bb, {Size=ud2(1,-4,1,0), Position=ud2(0,2,0,0), BackgroundTransparency=1, Text=toStr(CFG[k]), TextColor3=CFG.SECONDARY_TEXT_COLOR, Font=Enum.Font.Gotham, TextSize=7, TextTransparency=1, ClearTextOnFocus=false, ClipsDescendants=true})
         bx.FocusLost:Connect(function() local pv=pVal(CFG[k], bx.Text); CFG[k]=pv; bx.Text=toStr(pv) end) 
     end
-    cfLL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() cScrl.CanvasSize=ud2(0,0,0,cfLL.AbsoluteContentSize.Y) end)
+    cfLL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() cScrl.CanvasSize=ud2(0,0,0,cfLL.AbsoluteContentSize.Y + 4) end)
     
     local function sB(nm, tx)
-        local b=mk("TextButton", scrl, {Name=nm, Size=ud2(0.92,0,0,20), Text=tx, BackgroundTransparency=1, TextColor3=c3(255,255,255), TextTransparency=1, Font=Enum.Font.GothamBold, TextSize=10, ZIndex=2})
+        -- ADJUSTED: Size X changed from 0.92 to 0.9 to prevent border clipping
+        local b=mk("TextButton", scrl, {Name=nm, Size=ud2(0.9,0,0,20), Text=tx, BackgroundTransparency=1, TextColor3=c3(255,255,255), TextTransparency=1, Font=Enum.Font.GothamBold, TextSize=10, ZIndex=2})
         local bg=mk("Frame", b, {Name="Background", Size=ud2(1,0,1,0), BackgroundColor3=c3(45,45,45), BackgroundTransparency=1, BorderSizePixel=0, ZIndex=1})
         mk("UICorner", bg, {CornerRadius=UDim.new(0,4)}); mk("UIPadding", bg, {PaddingLeft=UDim.new(0,0)}); mk("UIGradient", bg, {Rotation=0}); local st=mk("UIStroke", bg, {Thickness=1, ApplyStrokeMode=Enum.ApplyStrokeMode.Border, Color=c3(255,255,255), Transparency=1}); mk("UIGradient", st, {Rotation=0})
         b.MouseButton1Down:Connect(function() if isAnimating then return end tw(b, TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {Size=ud2(0.85,0,0,18)}) end)
-        local u=function() if isAnimating then return end tw(b, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size=ud2(0.92,0,0,20)}) end; b.MouseButton1Up:Connect(u); b.MouseLeave:Connect(u); table.insert(btns, b); return b
+        local u=function() if isAnimating then return end tw(b, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size=ud2(0.9,0,0,20)}) end; b.MouseButton1Up:Connect(u); b.MouseLeave:Connect(u); table.insert(btns, b); return b
     end
 
     bSpd1,bSpd2,bJmp,bNc,bHb,bLag,bInv,bFb,bEsp,bCesp,bInst,bSpdo,bZm,bWrn,bRst = sB("S1","SPEED BOOST 1"),sB("S2","DYNAMIC SPD"),sB("JP","JUMP POWER"),sB("NC","NOCLIP"),sB("HB","HITBOX OFF"),sB("LS","LAG SWITCH"),sB("IV","INVISIBLE"),sB("FB","FULLBRIGHT"),sB("ESP","ESP CHAMS"),sB("CESP","CUSTOM ESP"),sB("IN","INSTANT INTERACT"),sB("SPD","SPEEDOMETER"),sB("ZM","UNLIMITED ZOOM"),sB("WRN","PROXIMITY WARN"),sB("RST","SET SPAWN")

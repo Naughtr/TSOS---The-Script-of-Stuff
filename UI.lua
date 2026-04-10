@@ -10,8 +10,8 @@ local tBnc = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 local tBncIn = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In)
 local tSmth = TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
 
--- New: Performance friendly snapping tween info
-local snapInfo = TweenInfo.new(0.25, Enum.EasingStyle.Cubic, Enum.EasingDirection.Out)
+-- New: Performance friendly snapping tween info (Smoother for settling)
+local snapInfo = TweenInfo.new(0.2, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
 
 return function(plr, CFG)
     local gui, main, tTabBg, minFrm, cnfFrm, inpFrm, inBox, bSrch, bCnc, bMax, scrl, cScrl, bSpd1, bSpd2, bJmp, bNc, bHb, bLag, bInv, bFb, bEsp, bCesp, bInst, bSpdo, bZm, bWrn, bRst, bCls, bYes, bNo, bMin, sigLbl, stLbl, spdoLbl, logo, tLbl, cnfLbl, ttFrm, ttLbl
@@ -109,17 +109,15 @@ return function(plr, CFG)
     
     bCls=mk("TextButton", tTab, {Size=ud2(0,14,0,14), AnchorPoint=Vector2.new(0,0.5), Position=ud2(1,-18,0.5,0), Text="×", TextTransparency=1, BackgroundTransparency=1, TextColor3=c3(255,255,255), Font=Enum.Font.GothamBold, TextSize=14, BorderSizePixel=0}); bMin=mk("TextButton", tTab, {Size=ud2(0,14,0,14), AnchorPoint=Vector2.new(0,0.5), Position=ud2(1,-34,0.5,0), Text="-", TextTransparency=1, BackgroundTransparency=1, TextColor3=c3(255,255,255), Font=Enum.Font.GothamBold, TextSize=14, BorderSizePixel=0})
     
-    -- MODIFIED: Removed bottom padding entirely. The 44px view area will exactly fit two 20px buttons + one 4px gap.
     scrl = mk("ScrollingFrame", main, {Size=ud2(1,-16,0,44), Position=ud2(0,8,0,36), BackgroundColor3=CFG.BACKGROUND_COLOR, ScrollBarThickness=2, CanvasSize=ud2(0,0,0,0), ScrollingDirection=Enum.ScrollingDirection.Y, ElasticBehavior=Enum.ElasticBehavior.Always})
-    local uiPad = mk("UIPadding", scrl, {PaddingTop=UDim.new(0,0), PaddingBottom=UDim.new(0,0)})
+    local uiPad = mk("UIPadding", scrl, {PaddingTop=UDim.new(0,0), PaddingBottom=UDim.new(0,4)})
     local uiLL = mk("UIListLayout", scrl, {Padding=UDim.new(0,4), HorizontalAlignment=Enum.HorizontalAlignment.Center})
     
     uiLL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
         scrl.CanvasSize = ud2(0, 0, 0, uiLL.AbsoluteContentSize.Y)
     end)
 
-    -- MODIFIED: Removed bottom padding entirely.
-    cScrl = mk("ScrollingFrame", main, {Name="ConfigFrame", Size=ud2(1,-16,0,44), Position=ud2(0,8,0,36), BackgroundColor3=CFG.BACKGROUND_COLOR, ScrollBarThickness=2, CanvasSize=ud2(0,0,0,0), Visible=false, ScrollingDirection=Enum.ScrollingDirection.Y, ElasticBehavior=Enum.ElasticBehavior.Always}); local cfLL=mk("UIListLayout", cScrl, {Padding=UDim.new(0,4), HorizontalAlignment=Enum.HorizontalAlignment.Center}); mk("UIPadding", cScrl, {PaddingTop=UDim.new(0,0), PaddingBottom=UDim.new(0,0)})
+    cScrl = mk("ScrollingFrame", main, {Name="ConfigFrame", Size=ud2(1,-16,0,44), Position=ud2(0,8,0,36), BackgroundColor3=CFG.BACKGROUND_COLOR, ScrollBarThickness=2, CanvasSize=ud2(0,0,0,0), Visible=false, ScrollingDirection=Enum.ScrollingDirection.Y, ElasticBehavior=Enum.ElasticBehavior.Always}); local cfLL=mk("UIListLayout", cScrl, {Padding=UDim.new(0,4), HorizontalAlignment=Enum.HorizontalAlignment.Center}); mk("UIPadding", cScrl, {PaddingTop=UDim.new(0,0), PaddingBottom=UDim.new(0,4)})
     
     local sNm={SPEED_1_KEY="SPD 1",SPEED_2_KEY="SPD 2",LAG_SWITCH_KEY="LAG KEY",INVISIBILITY_KEY="INVIS",FULLBRIGHT_KEY="F-BRIGHT",ESP_CHAMS_KEY="ESP KEY",RESET_KEY="RESET",NOCLIP_KEY="NOCLIP",SPEEDOMETER_KEY="SPEEDO",ZOOM_KEY="ZOOM",WARNING_KEY="WARN",CUSTOM_ESP_KEY="C-ESP",BOOSTED_SPEED_1="BST SPD 1",DYNAMIC_SPEED_ADDITIVE="DYN ADD",DEFAULT_JUMP="DEF JUMP",BOOSTED_JUMP="BST JUMP",HITBOX_SIZE="HB SIZE",MAX_ZOOM="MAX ZM",MIN_ZOOM="MIN ZM",WARNING_DISTANCE="WARN DIST",INVISIBILITY_POSITION="INVIS POS",RESET_COOLDOWN="RST CD",BACKGROUND_COLOR="BG CLR",ACCENT_COLOR="ACC CLR",TAB_COLOR="TAB CLR",BORDER_COLOR="BRDR CLR",TEXT_COLOR="TXT CLR",SECONDARY_TEXT_COLOR="SEC TXT",ESP_MAX_DISTANCE="ESP MAX",ESP_NEAR_DISTANCE="ESP NEAR"}
     local pK, oK = {"BOOSTED_SPEED_1","DYNAMIC_SPEED_ADDITIVE","DEFAULT_JUMP","BOOSTED_JUMP","HITBOX_SIZE","MAX_ZOOM","MIN_ZOOM","WARNING_DISTANCE"}, {}; for k,_ in pairs(CFG) do if not table.find(pK,k) then table.insert(oK,k) end end; table.sort(oK); local sk={}; for _,k in ipairs(pK) do table.insert(sk,k) end; for _,k in ipairs(oK) do table.insert(sk,k) end
@@ -145,65 +143,57 @@ return function(plr, CFG)
     stLbl=mk("TextLabel", main, {Size=ud2(1,-10,0,12), Position=ud2(0,5,1,-22), Text="Ready", BackgroundTransparency=1, TextColor3=CFG.SECONDARY_TEXT_COLOR, Font=Enum.Font.Gotham, TextSize=8, TextTransparency=1})
     sigLbl=mk("TextLabel", main, {Size=ud2(1,0,0,10), Position=ud2(0,0,1,-10), Text="The Script of Stuffs", BackgroundTransparency=1, TextColor3=CFG.SECONDARY_TEXT_COLOR, Font=Enum.Font.Gotham, TextSize=7, TextTransparency=1})
 
-    -- NEW: Improved Scrolling Snap logic utilizing momentum tracking
-    local function setupSnapping(f: ScrollingFrame)
-        local isTouching = false
-        local lastScroll = tick()
-        local snapTween = nil
+    -- NEW: Robust Momentum-Aware Scroll Snapping
+    local lastScrollTimes = {}
+    local snapDebounce = {}
 
-        -- Track when the user is actively interacting with the frame
-        f.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                isTouching = true
-                if snapTween then snapTween:Cancel() end
-            end
-        end)
+    local function handleSnap(f)
+        if snapDebounce[f] then return end
+        snapDebounce[f] = true
+        
+        local buttonHeight = 20
+        local padding = 4
+        local step = buttonHeight + padding
+        
+        local currentY = f.CanvasPosition.Y
+        local targetY = math.round(currentY / step) * step
+        
+        -- Guarantee two buttons perfectly fit by clamping out any half-scrolled overlap at the bottom
+        local maxScroll = math.max(0, f.CanvasSize.Y.Offset - f.AbsoluteSize.Y)
+        local maxSnapY = math.max(0, math.floor(maxScroll / step) * step)
+        
+        targetY = math.clamp(targetY, 0, maxSnapY)
+        
+        if math.abs(currentY - targetY) > 0.5 then
+            local tw = TS:Create(f, snapInfo, {CanvasPosition = Vector2.new(0, targetY)})
+            tw:Play()
+            tw.Completed:Wait()
+        end
+        snapDebounce[f] = false
+    end
 
-        f.InputEnded:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                isTouching = false
-                lastScroll = tick()
-            end
-        end)
-
-        -- Track underlying momentum shifts
+    -- Monitor CanvasPosition instead of InputEnded to account for sliding momentum
+    for _, f in ipairs({scrl, cScrl}) do
+        snapDebounce[f] = false
         f:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
-            if isTouching then return end
-            lastScroll = tick()
-        end)
-
-        -- Execute the snap only after the momentum stops
-        RunService.RenderStepped:Connect(function()
-            if not isTouching and tick() - lastScroll > 0.1 and tick() - lastScroll < 0.15 then
-                lastScroll = 0 -- Disarm trigger
-                
-                local step = 24 -- 20 (button height) + 4 (padding gap)
-                local currentY = f.CanvasPosition.Y
-                local nearestIndex = math.round(currentY / step)
-                local targetY = nearestIndex * step
-                
-                -- Clamp to guarantee we don't snap past the maximum scroll bounds
-                local maxScroll = math.max(0, f.CanvasSize.Y.Offset - f.AbsoluteSize.Y)
-                targetY = math.clamp(targetY, 0, maxScroll)
-                
-                -- Snap only if we aren't perfectly aligned already
-                if math.abs(currentY - targetY) > 0.5 then
-                    snapTween = TS:Create(f, snapInfo, {CanvasPosition = Vector2.new(0, targetY)})
-                    snapTween:Play()
+            if snapDebounce[f] then return end
+            local t = tick()
+            lastScrollTimes[f] = t
+            -- Wait for momentum to completely settle for 0.15s before applying the snap
+            task.delay(0.15, function()
+                if lastScrollTimes[f] == t then
+                    handleSnap(f)
                 end
-            end
+            end)
         end)
     end
 
-    -- Connect snapping safely isolated from interaction blocks
-    setupSnapping(scrl)
-    setupSnapping(cScrl)
-
+    -- CHANGED: Size expanded slightly to 114 to prevent UI overlap and tightly frame 44px
     local function shwUi(vis, mSzX, mSzY) main.Visible=vis; if vis then tw(main, tSmth, {Size=ud2(0,mSzX,0,mSzY)}, true) end end
     local function fdMnu(a, c) tw(logo, tFast, {ImageTransparency=a}); tw(tLbl, tFast, {TextTransparency=a}); tw(bCls, tFast, {TextTransparency=a}); tw(bMin, tFast, {TextTransparency=a}, c) end
     local function setA(a) tw(spdoLbl,tFast,{TextTransparency=a}); tw(stLbl,tFast,{TextTransparency=a}); tw(sigLbl,tFast,{TextTransparency=a==0 and 0.5 or 1}) end
     local function trnMnu(f, s1, t, s2) setA(1); task.wait(0.1); tw(main, tSmth, {Size=ud2(0,120,0,22)}, true); fdMnu(1, true); local cp=main.Position; tw(main, tSmth, {Size=ud2(0,0,0,22), Position=ud2(cp.X.Scale, cp.X.Offset+60, cp.Y.Scale, cp.Y.Offset)}, true); main.Visible=false; if t then t.Size, t.Position, t.Visible = ud2(0,0,0, t==cnfFrm and 0 or 22), ud2(0.5,0,0.5,0), true; tw(t, tBnc, {Size=s2, Position=ud2(0.5, -s2.X.Offset/2, 0.5, -s2.Y.Offset/2)}, true) end end
-    local function unTrn(t) tw(t, tBncIn, {Size=ud2(0,0,0,0), Position=ud2(0.5,0,0.5,0)}, true); t.Visible=false; local cx=main.Position.X; main.Size, main.Position, main.Visible = ud2(0,0,0,22), ud2(cx.Scale,cx.Offset,main.Position.Y.Scale,main.Position.Y.Offset), true; tw(main, tSmth, {Size=ud2(0,120,0,22), Position=ud2(cx.Scale, cx.Offset-60, main.Position.Y.Scale, main.Position.Y.Offset)}, true); fdMnu(0, true); shwUi(true, 120, 110); setA(0) end
+    local function unTrn(t) tw(t, tBncIn, {Size=ud2(0,0,0,0), Position=ud2(0.5,0,0.5,0)}, true); t.Visible=false; local cx=main.Position.X; main.Size, main.Position, main.Visible = ud2(0,0,0,22), ud2(cx.Scale,cx.Offset,main.Position.Y.Scale,main.Position.Y.Offset), true; tw(main, tSmth, {Size=ud2(0,120,0,22), Position=ud2(cx.Scale, cx.Offset-60, main.Position.Y.Scale, main.Position.Y.Offset)}, true); fdMnu(0, true); shwUi(true, 120, 114); setA(0) end
     local function tgBtns(a, d) for _,b in ipairs(btns) do tw(b, tFast, {TextTransparency=a}); local bg=b:FindFirstChild("Background"); if bg then tw(bg, tFast, {BackgroundTransparency=a}); local st=bg:FindFirstChildOfClass("UIStroke"); if st then tw(st, tFast, {Transparency=a}) end end; if d then task.wait(d) end end end
     local function tgCfg(a) for _,r in ipairs(cScrl:GetChildren()) do if r:IsA("Frame") then local l,bg=r:FindFirstChildOfClass("TextLabel"),r:FindFirstChild("Frame"); if l then tw(l,tFast,{TextTransparency=a}) end; if bg then tw(bg,tFast,{BackgroundTransparency=a}); local s,bx=bg:FindFirstChildOfClass("UIStroke"),bg:FindFirstChildOfClass("TextBox"); if s then tw(s,tFast,{Transparency=a}) end; if bx then tw(bx,tFast,{TextTransparency=a}) end end end end end
 
@@ -212,15 +202,15 @@ return function(plr, CFG)
     function UI_API.playAnim()
         if isAnimating then return end
         local s=mk("TextLabel", gui, {Size=ud2(1,0,1,0), BackgroundTransparency=1, Text="TSOS", TextColor3=c3(255,255,255), Font=Enum.Font.GothamBold, TextSize=100, ZIndex=100}); task.wait(4); tw(s, tFast, {TextTransparency=1}, true); s:Destroy()
-        main.Visible, main.Size, main.Position = true, ud2(0,0,0,22), ud2(0.5,0,0.5,-59); tw(main, tSmth, {Size=ud2(0,120,0,22), Position=ud2(0.5,-60,0.5,-59)}, true); fdMnu(0, true); shwUi(true, 120, 110); tgBtns(0, 0.05); setA(0)
+        main.Visible, main.Size, main.Position = true, ud2(0,0,0,22), ud2(0.5,0,0.5,-59); tw(main, tSmth, {Size=ud2(0,120,0,22), Position=ud2(0.5,-60,0.5,-59)}, true); fdMnu(0, true); shwUi(true, 120, 114); tgBtns(0, 0.05); setA(0)
     end
 
     function UI_API.toggleConfigMenu(isOpen)
         if isAnimating then return end
         tw(logo, tBnc, {Rotation=logo.Rotation+360}); setA(1); task.wait(0.1)
         isAnimating = true 
-        if not isOpen then tgCfg(1); task.wait(0.15); tw(main, tSmth, {Size=ud2(0,120,0,22)}, true); cScrl.Visible, scrl.Visible = false, true; shwUi(true, 120, 110); tgBtns(0)
-        else tgBtns(1); task.wait(0.15); tw(main, tSmth, {Size=ud2(0,120,0,22)}, true); scrl.Visible, cScrl.Visible = false, true; shwUi(true, 120, 110); tgCfg(0) end; setA(0)
+        if not isOpen then tgCfg(1); task.wait(0.15); tw(main, tSmth, {Size=ud2(0,120,0,22)}, true); cScrl.Visible, scrl.Visible = false, true; shwUi(true, 120, 114); tgBtns(0)
+        else tgBtns(1); task.wait(0.15); tw(main, tSmth, {Size=ud2(0,120,0,22)}, true); scrl.Visible, cScrl.Visible = false, true; shwUi(true, 120, 114); tgCfg(0) end; setA(0)
         isAnimating = false
     end
 

@@ -9,6 +9,9 @@ local tBnc = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 local tBncIn = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In)
 local tSmth = TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
 
+-- New: Performance friendly snapping tween info from Script 1
+local snapInfo = TweenInfo.new(0.2, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
+
 return function(plr, CFG)
     local gui, main, tTabBg, minFrm, cnfFrm, inpFrm, inBox, bSrch, bCnc, bMax, scrl, cScrl, bSpd1, bSpd2, bJmp, bNc, bHb, bLag, bInv, bFb, bEsp, bCesp, bInst, bSpdo, bZm, bWrn, bRst, bCls, bYes, bNo, bMin, sigLbl, stLbl, spdoLbl, logo, tLbl, cnfLbl, ttFrm, ttLbl
     local btns, bOrigClr = {}, {}
@@ -45,32 +48,26 @@ return function(plr, CFG)
         return o
     end
 
-    -- MODIFIED: Added 'act' parameter to toggle gradient visibility based on state
     local function updBClr(b, c, act)
         local bg = b:FindFirstChild("Background"); if not bg then return end
         bg.BackgroundColor3 = c
-        
-        -- Handle Background Gradient
         local gr = bg:FindFirstChildOfClass("UIGradient")
         if gr then 
-            gr.Enabled = not act -- Disable gradient if active (flat color)
+            gr.Enabled = not act
             gr.Color = ColorSequence.new(c, c3(15,15,15)) 
         end
-        
-        -- Handle Stroke Gradient
         local st = bg:FindFirstChildOfClass("UIStroke")
         if st then 
-            st.Color = act and c or c3(255,255,255) -- Match border to color if flat, else white
+            st.Color = act and c or c3(255,255,255)
             local sg = st:FindFirstChildOfClass("UIGradient")
             if sg then 
-                sg.Enabled = not act -- Disable border gradient if active
+                sg.Enabled = not act
                 local h,s,v = c:ToHSV()
                 sg.Color = ColorSequence.new(Color3.fromHSV(h, s*0.8, math.min(v*1.4, 1)), c3(0,0,0)) 
             end
         end
     end
 
-    -- MODIFIED: Pass the 'act' (active) state to updBClr
     local function stBAct(b, act) 
         if act then 
             updBClr(b, Color3.fromHSV(math.random(), 0.75, 0.45), true) 
@@ -140,6 +137,48 @@ return function(plr, CFG)
     spdoLbl=mk("TextLabel", main, {Size=ud2(1,-10,0,12), Position=ud2(0,5,1,-34), Text="Speed: 0 studs/s", BackgroundTransparency=1, TextColor3=c3(255,255,255), Font=Enum.Font.GothamBold, TextSize=8, TextTransparency=1, Visible=false})
     stLbl=mk("TextLabel", main, {Size=ud2(1,-10,0,12), Position=ud2(0,5,1,-22), Text="Ready", BackgroundTransparency=1, TextColor3=CFG.SECONDARY_TEXT_COLOR, Font=Enum.Font.Gotham, TextSize=8, TextTransparency=1})
     sigLbl=mk("TextLabel", main, {Size=ud2(1,0,0,10), Position=ud2(0,0,1,-10), Text="The Script of Stuffs", BackgroundTransparency=1, TextColor3=CFG.SECONDARY_TEXT_COLOR, Font=Enum.Font.Gotham, TextSize=7, TextTransparency=1})
+
+    -- NEW: Robust Momentum-Aware Scroll Snapping from Script 1
+    local lastScrollTimes = {}
+    local snapDebounce = {}
+
+    local function handleSnap(f)
+        if snapDebounce[f] then return end
+        snapDebounce[f] = true
+        
+        local buttonHeight = 20
+        local padding = 4
+        local step = buttonHeight + padding
+        
+        local currentY = f.CanvasPosition.Y
+        local targetY = math.round(currentY / step) * step
+        
+        local maxScroll = math.max(0, f.CanvasSize.Y.Offset - f.AbsoluteSize.Y)
+        local maxSnapY = math.max(0, math.floor(maxScroll / step) * step)
+        
+        targetY = math.clamp(targetY, 0, maxSnapY)
+        
+        if math.abs(currentY - targetY) > 0.5 then
+            local twSnap = TS:Create(f, snapInfo, {CanvasPosition = Vector2.new(0, targetY)})
+            twSnap:Play()
+            twSnap.Completed:Wait()
+        end
+        snapDebounce[f] = false
+    end
+
+    for _, f in ipairs({scrl, cScrl}) do
+        snapDebounce[f] = false
+        f:GetPropertyChangedSignal("CanvasPosition"):Connect(function()
+            if snapDebounce[f] then return end
+            local t = tick()
+            lastScrollTimes[f] = t
+            task.delay(0.15, function()
+                if lastScrollTimes[f] == t then
+                    handleSnap(f)
+                end
+            end)
+        end)
+    end
 
     local function shwUi(vis, mSzX, mSzY) main.Visible=vis; if vis then tw(main, tSmth, {Size=ud2(0,mSzX,0,mSzY)}, true) end end
     local function fdMnu(a, c) tw(logo, tFast, {ImageTransparency=a}); tw(tLbl, tFast, {TextTransparency=a}); tw(bCls, tFast, {TextTransparency=a}); tw(bMin, tFast, {TextTransparency=a}, c) end

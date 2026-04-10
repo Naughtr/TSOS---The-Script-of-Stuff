@@ -57,26 +57,28 @@ return function(plr, CFG)
     tTabBg = mk("Frame", main, {Name="TitleTabBg", Size=ud2(1,0,0,22), BackgroundColor3=CFG.TAB_COLOR, BorderSizePixel=0}); mk("UICorner", tTabBg, {CornerRadius=UDim.new(0,10)}); mk("Frame", tTabBg, {Name="BottomBorder", Size=ud2(1,0,0,1), Position=ud2(0,0,1,-1), BackgroundColor3=CFG.BORDER_COLOR, BorderSizePixel=0, ZIndex=3}); local tTab=mk("Frame", tTabBg, {Name="TitleTab", Size=ud2(1,0,1,0), BackgroundTransparency=1, BorderSizePixel=0})
     logo=mk("ImageButton", tTab, {Name="Logo", Size=ud2(0,12,0,12), AnchorPoint=Vector2.new(0,0.5), Position=ud2(0,8,0.5,0), BackgroundTransparency=1, ImageTransparency=1, Image="rbxassetid://10793494685"}); tLbl=mk("TextLabel", tTab, {Size=ud2(1,-35,1,0), AnchorPoint=Vector2.new(0,24,0.5,0), TextTransparency=1, Text="TSOS", BackgroundTransparency=1, TextColor3=c3(255,255,255), Font=Enum.Font.GothamBold, TextSize=10, TextXAlignment=Enum.TextXAlignment.Left}); bCls=mk("TextButton", tTab, {Size=ud2(0,14,0,14), AnchorPoint=Vector2.new(0,0.5), Position=ud2(1,-18,0.5,0), Text="×", TextTransparency=1, BackgroundTransparency=1, TextColor3=c3(255,255,255), Font=Enum.Font.GothamBold, TextSize=14, BorderSizePixel=0}); bMin=mk("TextButton", tTab, {Size=ud2(0,14,0,14), AnchorPoint=Vector2.new(0,0.5), Position=ud2(1,-34,0.5,0), Text="-", TextTransparency=1, BackgroundTransparency=1, TextColor3=c3(255,255,255), Font=Enum.Font.GothamBold, TextSize=14, BorderSizePixel=0})
     
-    -- Main Scrolling Frame with Dynamic Canvas and Bottom Bounce Logic
+    -- Main Scrolling Frame
     scrl = mk("ScrollingFrame", main, {Size=ud2(1,-16,0,52), Position=ud2(0,8,0,36), BackgroundColor3=CFG.BACKGROUND_COLOR, ScrollBarThickness=2, CanvasSize=ud2(0,0,0,0), ScrollingDirection=Enum.ScrollingDirection.Y, ElasticBehavior=Enum.ElasticBehavior.Always})
     local uiPad = mk("UIPadding", scrl, {PaddingTop=UDim.new(0,4), PaddingBottom=UDim.new(0,4)})
     local uiLL = mk("UIListLayout", scrl, {Padding=UDim.new(0,4), HorizontalAlignment=Enum.HorizontalAlignment.Center})
     
-    -- STABLE BOTTOM OVER SCROLL LOGIC
+    -- FIXED: STABLE BOTTOM OVER SCROLL LOGIC
     scrl:GetPropertyChangedSignal("CanvasPosition"):Connect(function() 
         local yP = scrl.CanvasPosition.Y
         local wH = scrl.AbsoluteWindowSize.Y
         local cS = scrl.CanvasSize.Y.Offset
         local mS = math.max(0, cS - wH)
         
-        -- Detect bottom bounce vs top bounce
-        local isBottomBounce = yP > mS and mS > 0
-        local bnc = yP < 0 and math.abs(yP) or (isBottomBounce and yP - mS or 0)
+        -- Get absolute bounce magnitude regardless of top or bottom
+        local bnc = 0
+        if yP < 0 then
+            bnc = math.abs(yP)
+        elseif yP > mS and mS > 0 then
+            bnc = yP - mS
+        end
         
-        -- Apply vertical alignment shift to keep content pinned during specific bounce direction
-        uiLL.VerticalAlignment = (isBottomBounce) and Enum.VerticalAlignment.Bottom or Enum.VerticalAlignment.Top
-        uiLL.Padding = UDim.new(0, 4 + bnc * 0.12)
-        uiPad.PaddingTop = UDim.new(0, 4)
+        -- Smoothly scale padding. Removed VerticalAlignment flipping to stop layout thrashing.
+        uiLL.Padding = UDim.new(0, 4 + (bnc * 0.08))
     end)
 
     -- Dynamic CanvasSize Update

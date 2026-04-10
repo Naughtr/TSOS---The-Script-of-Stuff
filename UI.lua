@@ -62,43 +62,9 @@ return function(plr, CFG)
     local uiPad = mk("UIPadding", scrl, {PaddingTop=UDim.new(0,4), PaddingBottom=UDim.new(0,4)})
     local uiLL = mk("UIListLayout", scrl, {Padding=UDim.new(0,4), HorizontalAlignment=Enum.HorizontalAlignment.Center})
     
-    local baseCanvasSize = 0
-
-    -- Dynamic CanvasSize Update
+    -- Dynamic CanvasSize Update (Simplified & Stabilized)
     uiLL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function()
-        -- Only update the base size when padding is unstretched to prevent layout feedback loops
-        if uiLL.Padding.Offset <= 4.1 then
-            baseCanvasSize = uiLL.AbsoluteContentSize.Y + 10
-            scrl.CanvasSize = ud2(0, 0, 0, baseCanvasSize)
-        end
-    end)
-
-    -- FIXED: STABLE BOTTOM OVER SCROLL LOGIC
-    scrl:GetPropertyChangedSignal("CanvasPosition"):Connect(function() 
-        local yP = scrl.CanvasPosition.Y
-        local wH = scrl.AbsoluteWindowSize.Y
-        
-        -- Use baseCanvasSize to calculate max scroll boundary (mS). 
-        -- This prevents the feedback loop where expanding CanvasSize causes the bounce math to constantly shift.
-        local mS = math.max(0, baseCanvasSize - wH)
-        
-        -- Get absolute bounce magnitude regardless of top or bottom
-        local bnc = 0
-        if yP < 0 then
-            bnc = math.abs(yP)
-        elseif yP > mS and mS > 0 then
-            bnc = yP - mS
-        end
-        
-        -- Smoothly scale padding
-        local targetPadding = 4 + (bnc * 0.08)
-        uiLL.Padding = UDim.new(0, targetPadding)
-
-        -- Keep actual CanvasSize accommodating the stretched items during bounce 
-        -- so they don't clip outside list bounds.
-        if targetPadding > 4.1 then
-            scrl.CanvasSize = ud2(0, 0, 0, uiLL.AbsoluteContentSize.Y + 10)
-        end
+        scrl.CanvasSize = ud2(0, 0, 0, uiLL.AbsoluteContentSize.Y + 10)
     end)
 
     cScrl = mk("ScrollingFrame", main, {Name="ConfigFrame", Size=ud2(1,-16,0,52), Position=ud2(0,8,0,36), BackgroundColor3=CFG.BACKGROUND_COLOR, ScrollBarThickness=2, CanvasSize=ud2(0,0,0,0), Visible=false, ScrollingDirection=Enum.ScrollingDirection.Y, ElasticBehavior=Enum.ElasticBehavior.Always}); local cfLL=mk("UIListLayout", cScrl, {Padding=UDim.new(0,4), HorizontalAlignment=Enum.HorizontalAlignment.Center}); mk("UIPadding", cScrl, {PaddingTop=UDim.new(0,4), PaddingBottom=UDim.new(0,4)})
@@ -190,7 +156,7 @@ return function(plr, CFG)
             local b=mk("BillboardGui", nil, {Name="ProximityWarning", Size=ud2(0,50,0,50), StudsOffset=v3(0,3.5,0), AlwaysOnTop=true, Enabled=false})
             mk("TextLabel", b, {Size=ud2(1,0,1,0), BackgroundTransparency=1, Text="!", TextColor3=c3(255,0,0), Font=Enum.Font.GothamBold, TextSize=45, TextStrokeTransparency=0, TextStrokeColor3=c3(0,0,0)}); wrnGui=b
         end
-        wrnGui.Parent, wrnGui.Adornee = hrp, hrp
+        wrnGui.Parent, wrnGui.Adornee = hrp, wrnGui
         wrnGui.Enabled = isVisible
     end
     function UI_API.clearWarningGui() if wrnGui then wrnGui:Destroy() wrnGui=nil end end

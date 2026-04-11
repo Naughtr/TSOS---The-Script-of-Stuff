@@ -9,16 +9,17 @@ local tBnc = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 local tBncIn = TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.In)
 local tSmth = TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out)
 
+-- New: Performance friendly snapping tween info from Script 1
 local snapInfo = TweenInfo.new(0.2, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
 
 return function(plr, CFG)
-    local gui, main, tTabBg, minFrm, cnfFrm, inpFrm, inBox, bSrch, bCnc, bMax, scrl, cScrl, bSpd1, bSpd2, bJmp, bNc, bHb, bLag, bInv, bFb, bEsp, bCesp, bInst, bSpdo, bZm, bWrn, bRst, bCls, bExp, bYes, bNo, bMin, sigLbl, stLbl, spdoLbl, logo, tLbl, cnfLbl, ttFrm, ttLbl
+    local gui, main, tTabBg, minFrm, cnfFrm, inpFrm, inBox, bSrch, bCnc, bMax, scrl, cScrl, bSpd1, bSpd2, bJmp, bNc, bHb, bLag, bInv, bFb, bEsp, bCesp, bInst, bSpdo, bZm, bWrn, bRst, bCls, bYes, bNo, bMin, bExp, sigLbl, stLbl, spdoLbl, logo, tLbl, cnfLbl, ttFrm, ttLbl
     local btns, bOrigClr = {}, {}
     local espHL, espTg, espOff, cEspHL = {}, {}, {}, {}
     local lagPrt, wrnGui = nil, nil
     
     local isAnimating = false
-    local lastPos = ud2(0.5,-60,0.5,-59)
+    local lastPos = ud2(0.5,-60,0.5,-59) -- Added: Variable to track position for restoration
 
     local function mk(c, p, pr) local i = Instance.new(c); for k,v in pairs(pr or {}) do i[k]=v end; if p then i.Parent=p end; return i end
     
@@ -111,6 +112,7 @@ return function(plr, CFG)
     bMin=mk("TextButton", tTab, {Size=ud2(0,14,0,14), AnchorPoint=Vector2.new(0,0.5), Position=ud2(1,-50,0.5,0), Text="-", TextTransparency=1, BackgroundTransparency=1, TextColor3=c3(255,255,255), Font=Enum.Font.GothamBold, TextSize=14, BorderSizePixel=0})
     
     bExp.MouseButton1Click:Connect(function()
+        if isAnimating then return end
         pcall(function()
             loadstring(game:HttpGet("https://raw.githubusercontent.com/Naughtr/TSOS---The-Script-of-Stuff/refs/heads/main/UIb.lua"))()
         end)
@@ -146,6 +148,7 @@ return function(plr, CFG)
     stLbl=mk("TextLabel", main, {Size=ud2(1,-10,0,12), Position=ud2(0,5,1,-22), Text="Ready", BackgroundTransparency=1, TextColor3=CFG.SECONDARY_TEXT_COLOR, Font=Enum.Font.Gotham, TextSize=8, TextTransparency=1})
     sigLbl=mk("TextLabel", main, {Size=ud2(1,0,0,10), Position=ud2(0,0,1,-10), Text="The Script of Stuffs", BackgroundTransparency=1, TextColor3=CFG.SECONDARY_TEXT_COLOR, Font=Enum.Font.Gotham, TextSize=7, TextTransparency=1})
 
+    -- NEW: Robust Momentum-Aware Scroll Snapping from Script 1
     local lastScrollTimes = {}
     local snapDebounce = {}
 
@@ -192,6 +195,7 @@ return function(plr, CFG)
     local function setA(a) tw(spdoLbl,tFast,{TextTransparency=a}); tw(stLbl,tFast,{TextTransparency=a}); tw(sigLbl,tFast,{TextTransparency=a==0 and 0.5 or 1}) end
     local function trnMnu(f, s1, t, s2) setA(1); task.wait(0.1); tw(main, tSmth, {Size=ud2(0,120,0,22)}, true); fdMnu(1, true); local cp=main.Position; tw(main, tSmth, {Size=ud2(0,0,0,22), Position=ud2(cp.X.Scale, cp.X.Offset+60, cp.Y.Scale, cp.Y.Offset)}, true); main.Visible=false; if t then t.Size, t.Position, t.Visible = ud2(0,0,0, t==cnfFrm and 0 or 22), ud2(0.5,0,0.5,0), true; tw(t, tBnc, {Size=s2, Position=ud2(0.5, -s2.X.Offset/2, 0.5, -s2.Y.Offset/2)}, true) end end
     
+    -- Modified: Added lastPos logic to restoration
     local function unTrn(t) tw(t, tBncIn, {Size=ud2(0,0,0,0), Position=ud2(0.5,0,0.5,0)}, true); t.Visible=false; local cx=lastPos.X; main.Size, main.Position, main.Visible = ud2(0,0,0,22), ud2(cx.Scale,cx.Offset+60,lastPos.Y.Scale,lastPos.Y.Offset), true; tw(main, tSmth, {Size=ud2(0,120,0,22), Position=lastPos}, true); fdMnu(0, true); shwUi(true, 120, 118); setA(0) end
     
     local function tgBtns(a, d) for _,b in ipairs(btns) do tw(b, tFast, {TextTransparency=a}); local bg=b:FindFirstChild("Background"); if bg then tw(bg, tFast, {BackgroundTransparency=a}); local st=bg:FindFirstChildOfClass("UIStroke"); if st then tw(st, tFast, {Transparency=a}) end end; if d then task.wait(d) end end end
@@ -216,6 +220,7 @@ return function(plr, CFG)
         isAnimating = false
     end
 
+    -- Modified: Store lastPos before trnMnu clears it
     function UI_API.minimize()
         if isAnimating then return end
         lastPos = main.Position
@@ -355,7 +360,7 @@ return function(plr, CFG)
     function UI_API.destroyGui() gui:Destroy() end
 
     return {
-        gui=gui, inBox=inBox, bSpd1=bSpd1, bSpd2=bSpd2, bJmp=bJmp, bNc=bNc, bHb=bHb, bLag=bLag, bInv=bInv, bFb=bFb, bEsp=bEsp, bCesp=bCesp, bInst=bInst, bSpdo=bSpdo, bZm=bZm, bWrn=bWrn, bRst=bRst, bCls=bCls, bExp=bExp, bYes=bYes, bNo=bNo, bMin=bMin, bMax=bMax, bSrch=bSrch, bCnc=bCnc, logo=logo, btns=btns, 
+        gui=gui, inBox=inBox, bSpd1=bSpd1, bSpd2=bSpd2, bJmp=bJmp, bNc=bNc, bHb=bHb, bLag=bLag, bInv=bInv, bFb=bFb, bEsp=bEsp, bCesp=bCesp, bInst=bInst, bSpdo=bSpdo, bZm=bZm, bWrn=bWrn, bRst=bRst, bCls=bCls, bYes=bYes, bNo=bNo, bMin=bMin, bExp=bExp, bMax=bMax, bSrch=bSrch, bCnc=bCnc, logo=logo, btns=btns, 
         API = UI_API
     }
 end

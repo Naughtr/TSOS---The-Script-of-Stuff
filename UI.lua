@@ -278,7 +278,7 @@ return function(plr, CFG)
 
     function UI_API.setWarningGui(hrp, isVisible)
         if not wrnGui then
-            wrnGui = mk("BillboardGui", nil, {Name="ProximityWarning", Size=ud2(0,50,0,50), StudsOffset=v3(0,3,0), AlwaysOnTop=true, Enabled=false})
+            wrnGui = mk("BillboardGui", nil, {Name="ProximityWarning", Size=ud2(0,50,0,50), StudsOffset=v3(0,5,0), AlwaysOnTop=true, Enabled=false})
             mk("TextLabel", wrnGui, {Size=ud2(1,0,1,0), BackgroundTransparency=1, Text="!", TextColor3=c3(255,0,0), Font=Enum.Font.GothamBold, TextSize=45, TextStrokeTransparency=0, TextStrokeColor3=c3(0,0,0)})
         end
         wrnGui.Parent = hrp

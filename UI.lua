@@ -19,6 +19,7 @@ return function(plr, CFG)
     local lagPrt, wrnGui = nil, nil
     
     local isAnimating = false
+    local lastPos = ud2(0.5,-60,0.5,-59) -- Added: Variable to track position for restoration
 
     local function mk(c, p, pr) local i = Instance.new(c); for k,v in pairs(pr or {}) do i[k]=v end; if p then i.Parent=p end; return i end
     
@@ -184,7 +185,10 @@ return function(plr, CFG)
     local function fdMnu(a, c) tw(logo, tFast, {ImageTransparency=a}); tw(tLbl, tFast, {TextTransparency=a}); tw(bCls, tFast, {TextTransparency=a}); tw(bMin, tFast, {TextTransparency=a}, c) end
     local function setA(a) tw(spdoLbl,tFast,{TextTransparency=a}); tw(stLbl,tFast,{TextTransparency=a}); tw(sigLbl,tFast,{TextTransparency=a==0 and 0.5 or 1}) end
     local function trnMnu(f, s1, t, s2) setA(1); task.wait(0.1); tw(main, tSmth, {Size=ud2(0,120,0,22)}, true); fdMnu(1, true); local cp=main.Position; tw(main, tSmth, {Size=ud2(0,0,0,22), Position=ud2(cp.X.Scale, cp.X.Offset+60, cp.Y.Scale, cp.Y.Offset)}, true); main.Visible=false; if t then t.Size, t.Position, t.Visible = ud2(0,0,0, t==cnfFrm and 0 or 22), ud2(0.5,0,0.5,0), true; tw(t, tBnc, {Size=s2, Position=ud2(0.5, -s2.X.Offset/2, 0.5, -s2.Y.Offset/2)}, true) end end
-    local function unTrn(t) tw(t, tBncIn, {Size=ud2(0,0,0,0), Position=ud2(0.5,0,0.5,0)}, true); t.Visible=false; local cx=main.Position.X; main.Size, main.Position, main.Visible = ud2(0,0,0,22), ud2(cx.Scale,cx.Offset,main.Position.Y.Scale,main.Position.Y.Offset), true; tw(main, tSmth, {Size=ud2(0,120,0,22), Position=ud2(cx.Scale, cx.Offset-60, main.Position.Y.Scale, main.Position.Y.Offset)}, true); fdMnu(0, true); shwUi(true, 120, 118); setA(0) end
+    
+    -- Modified: Added lastPos logic to restoration
+    local function unTrn(t) tw(t, tBncIn, {Size=ud2(0,0,0,0), Position=ud2(0.5,0,0.5,0)}, true); t.Visible=false; local cx=lastPos.X; main.Size, main.Position, main.Visible = ud2(0,0,0,22), ud2(cx.Scale,cx.Offset+60,lastPos.Y.Scale,lastPos.Y.Offset), true; tw(main, tSmth, {Size=ud2(0,120,0,22), Position=lastPos}, true); fdMnu(0, true); shwUi(true, 120, 118); setA(0) end
+    
     local function tgBtns(a, d) for _,b in ipairs(btns) do tw(b, tFast, {TextTransparency=a}); local bg=b:FindFirstChild("Background"); if bg then tw(bg, tFast, {BackgroundTransparency=a}); local st=bg:FindFirstChildOfClass("UIStroke"); if st then tw(st, tFast, {Transparency=a}) end end; if d then task.wait(d) end end end
     local function tgCfg(a) for _,r in ipairs(cScrl:GetChildren()) do if r:IsA("Frame") then local l,bg=r:FindFirstChildOfClass("TextLabel"),r:FindFirstChild("Frame"); if l then tw(l,tFast,{TextTransparency=a}) end; if bg then tw(bg,tFast,{BackgroundTransparency=a}); local s,bx=bg:FindFirstChildOfClass("UIStroke"),bg:FindFirstChildOfClass("TextBox"); if s then tw(s,tFast,{Transparency=a}) end; if bx then tw(bx,tFast,{TextTransparency=a}) end end end end end
     local function cnfEx(v) tw(cnfLbl,tFast,{TextTransparency=v}); tw(bYes,tFast,{TextTransparency=v}); tw(bNo,tFast,{TextTransparency=v}); tw(bYes.Background,tFast,{BackgroundTransparency=v}); tw(bNo.Background,tFast,{BackgroundTransparency=v}); tw(bYes.Background.UIStroke,tFast,{Transparency=v}); tw(bNo.Background.UIStroke,tFast,{Transparency=v==0 and 1 or 1}) end
@@ -207,8 +211,10 @@ return function(plr, CFG)
         isAnimating = false
     end
 
+    -- Modified: Store lastPos before trnMnu clears it
     function UI_API.minimize()
         if isAnimating then return end
+        lastPos = main.Position
         bMin.Visible, bCls.Visible = false, false 
         trnMnu(scrl, nil, nil, nil)
         minFrm.Position, minFrm.Visible = ud2(0.5,-30,0,-50), true
@@ -227,6 +233,7 @@ return function(plr, CFG)
 
     function UI_API.showConfirm() 
         if isAnimating then return end
+        lastPos = main.Position
         bMin.Visible, bCls.Visible = false, false 
         trnMnu(scrl, nil, cnfFrm, ud2(0,150,0,80)); cnfEx(0) 
     end
@@ -244,6 +251,7 @@ return function(plr, CFG)
     
     function UI_API.showInput(ph, tx, btnTx) 
         if isAnimating then return end
+        lastPos = main.Position
         bMin.Visible, bCls.Visible = false, false
         trnMnu(scrl, nil, inpFrm, ud2(0,160,0,75)); inBox.PlaceholderText, inBox.Text, bSrch.Text = ph, tx, btnTx; inEx(0) 
     end

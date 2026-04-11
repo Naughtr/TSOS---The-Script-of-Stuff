@@ -203,6 +203,8 @@ return function(plr, CFG)
         for _,r in ipairs(cScrl:GetChildren()) do 
             if r:IsA("Frame") then 
                 local l,bg=r:FindFirstChildOfClass("TextLabel"),r:FindFirstChild("Frame"); 
+
+
                 local btn = r:FindFirstChild("SwitchButton")
                 if btn then
                     tw(btn, tFast, {TextTransparency = a})
@@ -213,6 +215,8 @@ return function(plr, CFG)
                         if bSt then tw(bSt, tFast, {Transparency = a}) end
                     end
                 end
+
+                
                 if l then tw(l,tFast,{TextTransparency=a}) end; 
                 if bg then tw(bg,tFast,{BackgroundTransparency=a}); local s,bx=bg:FindFirstChildOfClass("UIStroke"),bg:FindFirstChildOfClass("TextBox"); if s then tw(s,tFast,{Transparency=a}) end; if bx then tw(bx,tFast,{TextTransparency=a}) end end 
             end 
@@ -378,9 +382,12 @@ return function(plr, CFG)
 
     function UI_API.destroyGui() gui:Destroy() end
 
+    
     return {
         gui=gui, inBox=inBox, bSpd1=bSpd1, bSpd2=bSpd2, bJmp=bJmp, bNc=bNc, bHb=bHb, bLag=bLag, bInv=bInv, bFb=bFb, bEsp=bEsp, bCesp=bCesp, bInst=bInst, bSpdo=bSpdo, bZm=bZm, bWrn=bWrn, bRst=bRst, bCls=bCls, bYes=bYes, bNo=bNo, bMin=bMin, bMax=bMax, bSrch=bSrch, bCnc=bCnc, logo=logo, btns=btns, 
-        bSwitch = bSwitch, -- ADDED: Return to main script
+        bSwitch = bSwitch, 
         API = UI_API
     }
+
+
 end

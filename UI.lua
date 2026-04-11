@@ -19,7 +19,7 @@ return function(plr, CFG)
     local lagPrt, wrnGui = nil, nil
     
     local isAnimating = false
-    local lastPos = ud2(0.5,-60,0.5,-59) -- Variable to track position for restoration
+    local lastPos = ud2(0.5,-60,0.5,-59) -- Added: Variable to track position for restoration
 
     local function mk(c, p, pr) local i = Instance.new(c); for k,v in pairs(pr or {}) do i[k]=v end; if p then i.Parent=p end; return i end
     
@@ -126,6 +126,7 @@ return function(plr, CFG)
         bx.FocusLost:Connect(function() local pv=pVal(CFG[k], bx.Text); CFG[k]=pv; bx.Text=toStr(pv) end) end
     cfLL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() cScrl.CanvasSize=ud2(0,0,0,cfLL.AbsoluteContentSize.Y+10) end)
     
+    -- NEW: Rayfield Switch Button (Added at end of config list)
     bRayfield = crStylB(cScrl, ud2(0.92,0,0,20), ud2(0,0,0,0), "Switch to Rayfield", c3(142, 68, 173))
     
     local function sB(nm, tx)
@@ -141,19 +142,26 @@ return function(plr, CFG)
     stLbl=mk("TextLabel", main, {Size=ud2(1,-10,0,12), Position=ud2(0,5,1,-22), Text="Ready", BackgroundTransparency=1, TextColor3=CFG.SECONDARY_TEXT_COLOR, Font=Enum.Font.Gotham, TextSize=8, TextTransparency=1})
     sigLbl=mk("TextLabel", main, {Size=ud2(1,0,0,10), Position=ud2(0,0,1,-10), Text="The Script of Stuffs", BackgroundTransparency=1, TextColor3=CFG.SECONDARY_TEXT_COLOR, Font=Enum.Font.Gotham, TextSize=7, TextTransparency=1})
 
+    -- NEW: Robust Momentum-Aware Scroll Snapping from Script 1
     local lastScrollTimes = {}
     local snapDebounce = {}
 
     local function handleSnap(f)
         if snapDebounce[f] then return end
         snapDebounce[f] = true
-        local buttonHeight, padding = 20, 4
+        
+        local buttonHeight = 20
+        local padding = 4
         local step = buttonHeight + padding
+        
         local currentY = f.CanvasPosition.Y
         local targetY = math.round(currentY / step) * step
+        
         local maxScroll = math.max(0, f.CanvasSize.Y.Offset - f.AbsoluteSize.Y)
         local maxSnapY = math.max(0, math.floor(maxScroll / step) * step)
+        
         targetY = math.clamp(targetY, 0, maxSnapY)
+        
         if math.abs(currentY - targetY) > 0.5 then
             local twSnap = TS:Create(f, snapInfo, {CanvasPosition = Vector2.new(0, targetY)})
             twSnap:Play()
@@ -168,7 +176,11 @@ return function(plr, CFG)
             if snapDebounce[f] then return end
             local t = tick()
             lastScrollTimes[f] = t
-            task.delay(0.15, function() if lastScrollTimes[f] == t then handleSnap(f) end end)
+            task.delay(0.15, function()
+                if lastScrollTimes[f] == t then
+                    handleSnap(f)
+                end
+            end)
         end)
     end
 
@@ -177,23 +189,11 @@ return function(plr, CFG)
     local function setA(a) tw(spdoLbl,tFast,{TextTransparency=a}); tw(stLbl,tFast,{TextTransparency=a}); tw(sigLbl,tFast,{TextTransparency=a==0 and 0.5 or 1}) end
     local function trnMnu(f, s1, t, s2) setA(1); task.wait(0.1); tw(main, tSmth, {Size=ud2(0,120,0,22)}, true); fdMnu(1, true); local cp=main.Position; tw(main, tSmth, {Size=ud2(0,0,0,22), Position=ud2(cp.X.Scale, cp.X.Offset+60, cp.Y.Scale, cp.Y.Offset)}, true); main.Visible=false; if t then t.Size, t.Position, t.Visible = ud2(0,0,0, t==cnfFrm and 0 or 22), ud2(0.5,0,0.5,0), true; tw(t, tBnc, {Size=s2, Position=ud2(0.5, -s2.X.Offset/2, 0.5, -s2.Y.Offset/2)}, true) end end
     
+    -- Modified: Added lastPos logic to restoration
     local function unTrn(t) tw(t, tBncIn, {Size=ud2(0,0,0,0), Position=ud2(0.5,0,0.5,0)}, true); t.Visible=false; local cx=lastPos.X; main.Size, main.Position, main.Visible = ud2(0,0,0,22), ud2(cx.Scale,cx.Offset+60,lastPos.Y.Scale,lastPos.Y.Offset), true; tw(main, tSmth, {Size=ud2(0,120,0,22), Position=lastPos}, true); fdMnu(0, true); shwUi(true, 120, 118); setA(0) end
     
     local function tgBtns(a, d) for _,b in ipairs(btns) do tw(b, tFast, {TextTransparency=a}); local bg=b:FindFirstChild("Background"); if bg then tw(bg, tFast, {BackgroundTransparency=a}); local st=bg:FindFirstChildOfClass("UIStroke"); if st then tw(st, tFast, {Transparency=a}) end end; if d then task.wait(d) end end end
-    local function tgCfg(a) 
-        for _,r in ipairs(cScrl:GetChildren()) do 
-            if r:IsA("Frame") then 
-                local l,bg=r:FindFirstChildOfClass("TextLabel"),r:FindFirstChild("Frame"); 
-                if l then tw(l,tFast,{TextTransparency=a}) end; 
-                if bg then tw(bg,tFast,{BackgroundTransparency=a}); local s,bx=bg:FindFirstChildOfClass("UIStroke"),bg:FindFirstChildOfClass("TextBox"); if s then tw(s,tFast,{Transparency=a}) end; if bx then tw(bx,tFast,{TextTransparency=a}) end end 
-            end 
-        end 
-        if bRayfield then
-            tw(bRayfield, tFast, {TextTransparency=a, BackgroundTransparency=a})
-            local bg = bRayfield:FindFirstChild("Background"); if bg then tw(bg, tFast, {BackgroundTransparency=a}) end
-            local st = bRayfield:FindFirstChildOfClass("UIStroke"); if st then tw(st, tFast, {Transparency=a}) end
-        end
-    end
+    local function tgCfg(a) for _,r in ipairs(cScrl:GetChildren()) do if r:IsA("Frame") then local l,bg=r:FindFirstChildOfClass("TextLabel"),r:FindFirstChild("Frame"); if l then tw(l,tFast,{TextTransparency=a}) end; if bg then tw(bg,tFast,{BackgroundTransparency=a}); local s,bx=bg:FindFirstChildOfClass("UIStroke"),bg:FindFirstChildOfClass("TextBox"); if s then tw(s,tFast,{Transparency=a}) end; if bx then tw(bx,tFast,{TextTransparency=a}) end end end end end
     local function cnfEx(v) tw(cnfLbl,tFast,{TextTransparency=v}); tw(bYes,tFast,{TextTransparency=v}); tw(bNo,tFast,{TextTransparency=v}); tw(bYes.Background,tFast,{BackgroundTransparency=v}); tw(bNo.Background,tFast,{BackgroundTransparency=v}); tw(bYes.Background.UIStroke,tFast,{Transparency=v}); tw(bNo.Background.UIStroke,tFast,{Transparency=v==0 and 1 or 1}) end
     local function inEx(v) tw(inBox,tFast,{TextTransparency=v}); tw(bSrch,tFast,{TextTransparency=v}); tw(bCnc,tFast,{TextTransparency=v}); tw(bSrch.Background,tFast,{BackgroundTransparency=v}); tw(bCnc.Background,tFast,{BackgroundTransparency=v}); tw(bSrch.Background.UIStroke,tFast,{Transparency=v}); tw(bCnc.Background.UIStroke,tFast,{Transparency=1}) end
 
@@ -214,33 +214,33 @@ return function(plr, CFG)
         isAnimating = false
     end
 
-    function UI_API.minimize()
-        if isAnimating then return end
+    -- Modified: Added onComplete callback parameter
+    function UI_API.minimize(onComplete)
+        if isAnimating then 
+            if onComplete then task.defer(onComplete) end
+            return 
+        end
         lastPos = main.Position
         bMin.Visible, bCls.Visible = false, false 
         trnMnu(scrl, nil, nil, nil)
         minFrm.Position, minFrm.Visible = ud2(0.5,-30,0,-50), true
         tw(minFrm, tBnc, {Position=ud2(0.5,-30,0,10)}, true)
         bMax.Active = true 
+        if onComplete then task.defer(onComplete) end
     end
 
-    -- Added: Specialized version of minimize specifically for switching to Rayfield
-    function UI_API.animateOutForRayfield()
-        if isAnimating then return end
-        lastPos = main.Position
-        bMin.Visible, bCls.Visible = false, false
-        trnMnu(scrl, nil, nil, nil)
-        -- Keep main.Visible false but don't show the small circle (minFrm)
-        minFrm.Visible = false
-    end
-
-    function UI_API.maximize()
-        if isAnimating then return end
+    -- Modified: Added onComplete callback parameter
+    function UI_API.maximize(onComplete)
+        if isAnimating then 
+            if onComplete then task.defer(onComplete) end
+            return 
+        end
         bMax.Active = false 
         tw(minFrm, tSmth, {Position=ud2(0.5,-30,0,-50)}, true)
         minFrm.Visible=false
         unTrn(main)
         bMin.Visible, bCls.Visible = true, true
+        if onComplete then task.defer(onComplete) end
     end
 
     function UI_API.showConfirm() 
@@ -278,6 +278,7 @@ return function(plr, CFG)
     function UI_API.setButtonState(b, txt, isActive) if txt then b.Text = txt end; stBAct(b, isActive) end
     function UI_API.updateSpeedometerText(txt) spdoLbl.Text = txt end
     function UI_API.toggleSpeedometerVisibility(isVisible) stLbl.Visible = not isVisible; spdoLbl.Visible = isVisible; spdoLbl.Position = isVisible and ud2(0,5,1,-22) or ud2(0,5,1,-34) end
+
     function UI_API.sendNotif(title, text, dur) SG:SetCore("SendNotification", {Title=title, Text=text, Duration=dur}) end
     function UI_API.rndBClr() rndBClr() end
 
@@ -290,7 +291,9 @@ return function(plr, CFG)
         if isActive then
             lagPrt = mk("Part", workspace, {Name="LagSwitchOriginIndicator", Shape=Enum.PartType.Ball, Size=v3(2.5,2.5,2.5), CFrame=hrpCFrame, CanCollide=false, Anchored=true, Transparency=0.4, Material=Enum.Material.Neon, BrickColor=BrickColor.new("Bright yellow")})
             mk("Highlight", lagPrt, {Name="IndicatorESP", FillColor=c3(255,255,0), OutlineColor=c3(255,255,255), FillTransparency=0.5})
-        else if lagPrt then lagPrt:Destroy() lagPrt=nil end end
+        else
+            if lagPrt then lagPrt:Destroy() lagPrt=nil end
+        end
     end
 
     function UI_API.setWarningGui(hrp, isVisible)
@@ -298,7 +301,9 @@ return function(plr, CFG)
             wrnGui = mk("BillboardGui", nil, {Name="ProximityWarning", Size=ud2(0,50,0,50), StudsOffset=v3(0,5,0), AlwaysOnTop=true, Enabled=false})
             mk("TextLabel", wrnGui, {Size=ud2(1,0,1,0), BackgroundTransparency=1, Text="!", TextColor3=c3(255,0,0), Font=Enum.Font.GothamBold, TextSize=45, TextStrokeTransparency=0, TextStrokeColor3=c3(0,0,0)})
         end
-        wrnGui.Parent, wrnGui.Adornee, wrnGui.Enabled = hrp, hrp, isVisible
+        wrnGui.Parent = hrp
+        wrnGui.Adornee = hrp
+        wrnGui.Enabled = isVisible
     end
     function UI_API.clearWarningGui() if wrnGui then wrnGui:Destroy() wrnGui=nil end end
 
@@ -309,7 +314,9 @@ return function(plr, CFG)
     function UI_API.addCustomHighlight(obj)
         if not obj:FindFirstChild("CustomEspH") then table.insert(cEspHL, mk("Highlight", obj, {Name="CustomEspH", FillColor=c3(0,255,255), OutlineColor=c3(255,255,255), FillTransparency=0.5, OutlineTransparency=0.1, DepthMode=Enum.HighlightDepthMode.AlwaysOnTop})) end
     end
-    function UI_API.clearCustomHighlights() for _, h in ipairs(cEspHL) do if h then h:Destroy() end end; cEspHL={} end
+    function UI_API.clearCustomHighlights()
+        for _, h in ipairs(cEspHL) do if h then h:Destroy() end end; cEspHL={}
+    end
 
     function UI_API.drawPlayerEsp(p, c, tp, espState, dist, clr, sp, isOffscreen, vpCtr, bx, by)
         if espState>=1 and espState<=4 then

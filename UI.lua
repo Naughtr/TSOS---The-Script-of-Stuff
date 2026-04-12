@@ -88,7 +88,7 @@ return function(plr, CFG)
     end
     
     local function crStylB(p, sz, pos, tx, clr)
-        local b=mk("TextButton", p, {Size=sz, Position=pos, Text=tx, BackgroundTransparency=1, TextColor3=c3(255,255,255), TextTransparency=1, Font=Enum.Font.GothamBold, TextSize=10, ZIndex=2})
+        local b=mk("TextButton", p, {Size=sz, Position=pos, Text=tx, BackgroundTransparency=1, TextColor3=c3(255,255,255), TextTransparency=1, Font=Enum.Font.GothamBold, TextSize=10, ZIndex=2, Visible=true})
         local bg=mk("Frame", b, {Name="Background", Size=ud2(1,0,1,0), BackgroundColor3=clr, BackgroundTransparency=1, BorderSizePixel=0, ZIndex=1})
         mk("UICorner", bg, {CornerRadius=UDim.new(0,4)}); mk("UIPadding", bg, {PaddingLeft=UDim.new(0,0)}); mk("UIGradient", bg, {Color=ColorSequence.new(clr,c3(15,15,15))})
         local str=mk("UIStroke", bg, {Thickness=1, ApplyStrokeMode=Enum.ApplyStrokeMode.Border, Color=c3(255,255,255), Transparency=1})
@@ -126,10 +126,10 @@ return function(plr, CFG)
         bx.FocusLost:Connect(function() local pv=pVal(CFG[k], bx.Text); CFG[k]=pv; bx.Text=toStr(pv) end) end
     cfLL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() cScrl.CanvasSize=ud2(0,0,0,cfLL.AbsoluteContentSize.Y+10) end)
     
-    -- NEW: Rayfield Switch Button (Added at end of config list) - Ensure it has proper layout order
+    -- NEW: Rayfield Switch Button (Added at end of config list)
     bRayfield = crStylB(cScrl, ud2(0.92,0,0,20), ud2(0,0,0,0), "Switch to Rayfield", c3(142, 68, 173))
-    -- Ensure it's properly registered in the layout
-    bRayfield.LayoutOrder = 999
+    -- Ensure it's properly laid out
+    bRayfield.LayoutOrder = 1000
     
     local function sB(nm, tx)
         local b=mk("TextButton", scrl, {Name=nm, Size=ud2(0.92,0,0,20), Text=tx, BackgroundTransparency=1, TextColor3=c3(255,255,255), TextTransparency=1, Font=Enum.Font.GothamBold, TextSize=10, ZIndex=2})
@@ -197,16 +197,15 @@ return function(plr, CFG)
     local function tgBtns(a, d) for _,b in ipairs(btns) do tw(b, tFast, {TextTransparency=a}); local bg=b:FindFirstChild("Background"); if bg then tw(bg, tFast, {BackgroundTransparency=a}); local st=bg:FindFirstChildOfClass("UIStroke"); if st then tw(st, tFast, {Transparency=a}) end end; if d then task.wait(d) end end end
     local function tgCfg(a) 
         for _,r in ipairs(cScrl:GetChildren()) do 
-            if r:IsA("Frame") and r.Name ~= "UIListLayout" and r.Name ~= "UIPadding" then 
+            if r:IsA("Frame") or r:IsA("TextButton") then 
                 local l,bg=r:FindFirstChildOfClass("TextLabel"),r:FindFirstChild("Frame"); 
                 if l then tw(l,tFast,{TextTransparency=a}) end; 
                 if bg then tw(bg,tFast,{BackgroundTransparency=a}); local s,bx=bg:FindFirstChildOfClass("UIStroke"),bg:FindFirstChildOfClass("TextBox"); if s then tw(s,tFast,{Transparency=a}) end; if bx then tw(bx,tFast,{TextTransparency=a}) end end 
             end 
         end 
-        -- Handle Rayfield button animation separately - ensure visibility
+        -- Handle Rayfield button separately (it's a TextButton not a Frame)
         if bRayfield then
-            bRayfield.Visible = true -- Ensure visible
-            tw(bRayfield, tFast, {TextTransparency=a, BackgroundTransparency=a})
+            tw(bRayfield, tFast, {TextTransparency=a})
             local bg = bRayfield:FindFirstChild("Background")
             if bg then tw(bg, tFast, {BackgroundTransparency=a}) end
             local st = bRayfield:FindFirstChildOfClass("UIStroke")
@@ -233,24 +232,33 @@ return function(plr, CFG)
         isAnimating = false
     end
 
-    -- Modified: Added onComplete callback parameter and skipPill option
-    function UI_API.minimize(onComplete, skipPill)
+    -- Modified: Added onComplete callback parameter and skipMinimizeButton option
+    function UI_API.minimize(onComplete, skipMinimizeButton)
         if isAnimating then 
             if onComplete then task.defer(onComplete) end
             return 
         end
         lastPos = main.Position
         bMin.Visible, bCls.Visible = false, false 
-        trnMnu(scrl, nil, nil, nil)
         
-        -- Only show minimized pill if not skipping
-        if not skipPill then
+        if skipMinimizeButton then
+            -- Just animate main shrinking without showing minimize button
+            setA(1)
+            task.wait(0.1)
+            tw(main, tSmth, {Size=ud2(0,120,0,22)}, true)
+            fdMnu(1, true)
+            local cp=main.Position
+            tw(main, tSmth, {Size=ud2(0,0,0,22), Position=ud2(cp.X.Scale, cp.X.Offset+60, cp.Y.Scale, cp.Y.Offset)}, true)
+            main.Visible=false
+            if onComplete then task.defer(onComplete) end
+        else
+            -- Normal minimize with button
+            trnMnu(scrl, nil, nil, nil)
             minFrm.Position, minFrm.Visible = ud2(0.5,-30,0,-50), true
             tw(minFrm, tBnc, {Position=ud2(0.5,-30,0,10)}, true)
             bMax.Active = true 
+            if onComplete then task.defer(onComplete) end
         end
-        
-        if onComplete then task.defer(onComplete) end
     end
 
     -- Modified: Added onComplete callback parameter

@@ -19,7 +19,7 @@ return function(plr, CFG)
     local lagPrt, wrnGui = nil, nil
     
     local isAnimating = false
-    local lastPos = ud2(0.5,-60,0.5,-59) -- Added: Variable to track position for restoration
+    local lastPos = ud2(0.5,-60,0.5,-59)
 
     local function mk(c, p, pr) local i = Instance.new(c); for k,v in pairs(pr or {}) do i[k]=v end; if p then i.Parent=p end; return i end
     
@@ -88,11 +88,11 @@ return function(plr, CFG)
     end
     
     local function crStylB(p, sz, pos, tx, clr)
-        local b=mk("TextButton", p, {Size=sz, Position=pos, Text=tx, BackgroundTransparency=1, TextColor3=c3(255,255,255), TextTransparency=1, Font=Enum.Font.GothamBold, TextSize=10, ZIndex=2, Visible=true})
+        local b=mk("TextButton", p, {Size=sz, Position=pos, Text=tx, BackgroundTransparency=1, TextColor3=c3(255,255,255), TextTransparency=1, Font=Enum.Font.GothamBold, TextSize=10, ZIndex=2})
         local bg=mk("Frame", b, {Name="Background", Size=ud2(1,0,1,0), BackgroundColor3=clr, BackgroundTransparency=1, BorderSizePixel=0, ZIndex=1})
         mk("UICorner", bg, {CornerRadius=UDim.new(0,4)}); mk("UIPadding", bg, {PaddingLeft=UDim.new(0,0)}); mk("UIGradient", bg, {Color=ColorSequence.new(clr,c3(15,15,15))})
-        local str=mk("UIStroke", bg, {Thickness=1, ApplyStrokeMode=Enum.ApplyStrokeMode.Border, Color=c3(255,255,255), Transparency=1})
-        local h,s,v=clr:ToHSV(); mk("UIGradient", str, {Color=ColorSequence.new(Color3.fromHSV(h,s*0.8,math.min(v*1.4,1)),c3(0,0,0))}); return b
+        local st=mk("UIStroke", bg, {Thickness=1, ApplyStrokeMode=Enum.ApplyStrokeMode.Border, Color=c3(255,255,255), Transparency=1})
+        local h,s,v=clr:ToHSV(); mk("UIGradient", st, {Color=ColorSequence.new(Color3.fromHSV(h,s*0.8,math.min(v*1.4,1)),c3(0,0,0))}); return b
     end
 
     if plr:WaitForChild("PlayerGui"):FindFirstChild("ToolsGUI") then plr.PlayerGui.ToolsGUI:Destroy() end
@@ -128,7 +128,6 @@ return function(plr, CFG)
     
     -- NEW: Rayfield Switch Button (Added at end of config list)
     bRayfield = crStylB(cScrl, ud2(0.92,0,0,20), ud2(0,0,0,0), "Switch to Rayfield", c3(142, 68, 173))
-    -- Ensure it's properly laid out
     bRayfield.LayoutOrder = 1000
     
     local function sB(nm, tx)
@@ -191,19 +190,25 @@ return function(plr, CFG)
     local function setA(a) tw(spdoLbl,tFast,{TextTransparency=a}); tw(stLbl,tFast,{TextTransparency=a}); tw(sigLbl,tFast,{TextTransparency=a==0 and 0.5 or 1}) end
     local function trnMnu(f, s1, t, s2) setA(1); task.wait(0.1); tw(main, tSmth, {Size=ud2(0,120,0,22)}, true); fdMnu(1, true); local cp=main.Position; tw(main, tSmth, {Size=ud2(0,0,0,22), Position=ud2(cp.X.Scale, cp.X.Offset+60, cp.Y.Scale, cp.Y.Offset)}, true); main.Visible=false; if t then t.Size, t.Position, t.Visible = ud2(0,0,0, t==cnfFrm and 0 or 22), ud2(0.5,0,0.5,0), true; tw(t, tBnc, {Size=s2, Position=ud2(0.5, -s2.X.Offset/2, 0.5, -s2.Y.Offset/2)}, true) end end
     
-    -- Modified: Added lastPos logic to restoration
     local function unTrn(t) tw(t, tBncIn, {Size=ud2(0,0,0,0), Position=ud2(0.5,0,0.5,0)}, true); t.Visible=false; local cx=lastPos.X; main.Size, main.Position, main.Visible = ud2(0,0,0,22), ud2(cx.Scale,cx.Offset+60,lastPos.Y.Scale,lastPos.Y.Offset), true; tw(main, tSmth, {Size=ud2(0,120,0,22), Position=lastPos}, true); fdMnu(0, true); shwUi(true, 120, 118); setA(0) end
     
     local function tgBtns(a, d) for _,b in ipairs(btns) do tw(b, tFast, {TextTransparency=a}); local bg=b:FindFirstChild("Background"); if bg then tw(bg, tFast, {BackgroundTransparency=a}); local st=bg:FindFirstChildOfClass("UIStroke"); if st then tw(st, tFast, {Transparency=a}) end end; if d then task.wait(d) end end end
+    
     local function tgCfg(a) 
+        -- Animate config rows (Frames)
         for _,r in ipairs(cScrl:GetChildren()) do 
-            if r:IsA("Frame") or r:IsA("TextButton") then 
-                local l,bg=r:FindFirstChildOfClass("TextLabel"),r:FindFirstChild("Frame"); 
-                if l then tw(l,tFast,{TextTransparency=a}) end; 
-                if bg then tw(bg,tFast,{BackgroundTransparency=a}); local s,bx=bg:FindFirstChildOfClass("UIStroke"),bg:FindFirstChildOfClass("TextBox"); if s then tw(s,tFast,{Transparency=a}) end; if bx then tw(bx,tFast,{TextTransparency=a}) end end 
+            if r:IsA("Frame") then 
+                local l,bg=r:FindFirstChildOfClass("TextLabel"),r:FindFirstChild("Frame")
+                if l then tw(l,tFast,{TextTransparency=a}) end
+                if bg then 
+                    tw(bg,tFast,{BackgroundTransparency=a})
+                    local s,bx=bg:FindFirstChildOfClass("UIStroke"),bg:FindFirstChildOfClass("TextBox")
+                    if s then tw(s,tFast,{Transparency=a}) end
+                    if bx then tw(bx,tFast,{TextTransparency=a}) end
+                end
             end 
         end 
-        -- Handle Rayfield button separately (it's a TextButton not a Frame)
+        -- Handle Rayfield button separately (it's a TextButton, not a Frame)
         if bRayfield then
             tw(bRayfield, tFast, {TextTransparency=a})
             local bg = bRayfield:FindFirstChild("Background")
@@ -212,6 +217,7 @@ return function(plr, CFG)
             if st then tw(st, tFast, {Transparency=a}) end
         end
     end
+    
     local function cnfEx(v) tw(cnfLbl,tFast,{TextTransparency=v}); tw(bYes,tFast,{TextTransparency=v}); tw(bNo,tFast,{TextTransparency=v}); tw(bYes.Background,tFast,{BackgroundTransparency=v}); tw(bNo.Background,tFast,{BackgroundTransparency=v}); tw(bYes.Background.UIStroke,tFast,{Transparency=v}); tw(bNo.Background.UIStroke,tFast,{Transparency=v==0 and 1 or 1}) end
     local function inEx(v) tw(inBox,tFast,{TextTransparency=v}); tw(bSrch,tFast,{TextTransparency=v}); tw(bCnc,tFast,{TextTransparency=v}); tw(bSrch.Background,tFast,{BackgroundTransparency=v}); tw(bCnc.Background,tFast,{BackgroundTransparency=v}); tw(bSrch.Background.UIStroke,tFast,{Transparency=v}); tw(bCnc.Background.UIStroke,tFast,{Transparency=1}) end
 
@@ -232,7 +238,6 @@ return function(plr, CFG)
         isAnimating = false
     end
 
-    -- Modified: Added onComplete callback parameter and skipMinimizeButton option
     function UI_API.minimize(onComplete, skipMinimizeButton)
         if isAnimating then 
             if onComplete then task.defer(onComplete) end
@@ -261,7 +266,6 @@ return function(plr, CFG)
         end
     end
 
-    -- Modified: Added onComplete callback parameter
     function UI_API.maximize(onComplete)
         if isAnimating then 
             if onComplete then task.defer(onComplete) end

@@ -2,6 +2,9 @@
 local TS = game:GetService("TweenService")
 local SG = game:GetService("StarterGui")
 local Deb = game:GetService("Debris")
+local Players = game:GetService("Players")
+local CoreGui = game:GetService("CoreGui")
+local HttpService = game:GetService("HttpService")
 
 local v3, c3, ud2 = Vector3.new, Color3.fromRGB, UDim2.new
 local tFast = TweenInfo.new(0.2, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
@@ -11,19 +14,31 @@ local tSmth = TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Ou
 
 local snapInfo = TweenInfo.new(0.2, Enum.EasingStyle.Sine, Enum.EasingDirection.Out)
 
-return function(plr, CFG)
+return function(plr, CFG, callbacks)
+    -- callbacks table should contain:
+    -- toggleSpeed1, toggleSpeed2, toggleJump, toggleNoclip, toggleHitbox, 
+    -- toggleLag, toggleInvis, toggleFullbright, toggleEsp, toggleCustomEsp,
+    -- toggleInst, toggleSpeedo, toggleZoom, toggleWarn, toggleReset, 
+    -- toggleJitter, setDynamicValue, runCustomEsp, unloadScript
+    
     local gui, main, tTabBg, minFrm, cnfFrm, inpFrm, inBox, bSrch, bCnc, bMax, scrl, cScrl, bSpd1, bSpd2, bJmp, bNc, bHb, bLag, bInv, bFb, bEsp, bCesp, bInst, bSpdo, bZm, bWrn, bRst, bCls, bYes, bNo, bMin, sigLbl, stLbl, spdoLbl, logo, tLbl, cnfLbl, ttFrm, ttLbl, bRayfield, bJf
     local btns, bOrigClr = {}, {}
     local espHL, espTg, espOff, cEspHL = {}, {}, {}, {}
     local lagPrt, wrnGui = nil, nil
     
+    -- Speedometer UI variables
+    local spdGui, spdFrame, spdText
+    local spdDragging = false
+    local spdDragInput, spdDragStart, spdStartPos, spdLastPos
+    
+    -- Jitter Fly UI variables
+    local jfUpGui, jfUpFrame
+    
     local isAnimating = false
     local lastPos = ud2(0.5,-60,0.5,-59)
-
-    -- Speedometer internal state
-    local spdUILastPos = nil
-    local spdDragging = false
-    local spdDragInput, spdDragStart, spdStartPos
+    
+    local switchNotifShown = false
+    local _G = _G or getfenv(0)
 
     local function mk(c, p, pr) local i = Instance.new(c); for k,v in pairs(pr or {}) do i[k]=v end; if p then i.Parent=p end; return i end
     
@@ -99,6 +114,247 @@ return function(plr, CFG)
         local h,s,v=clr:ToHSV(); mk("UIGradient", str, {Color=ColorSequence.new(Color3.fromHSV(h,s*0.8,math.min(v*1.4,1)),c3(0,0,0))}); return b
     end
 
+    --[[ SPEEDOMETER UI CREATION ]]--
+    local function createSpeedometerUI(existingPos)
+        if spdGui then 
+            spdGui:Destroy() 
+            spdGui = nil
+            spdFrame = nil
+            spdText = nil
+        end
+        
+        spdGui = mk("ScreenGui", plr:WaitForChild("PlayerGui"), {Name="TSOS_Speedometer", ResetOnSpawn=false, IgnoreGuiInset=true, DisplayOrder=100000, ZIndexBehavior=Enum.ZIndexBehavior.Global})
+        
+        spdFrame = mk("TextButton", spdGui, {Name="SpeedFrame", Size=ud2(0,140,0,28), Position=existingPos or ud2(0.5,-70,0,8), BackgroundColor3=CFG.BACKGROUND_COLOR, BackgroundTransparency=0.15, BorderSizePixel=0, Visible=false, ZIndex=100000, Text="", AutoButtonColor=false})
+        
+        local corner = mk("UICorner", spdFrame, {CornerRadius=UDim.new(0,6)})
+        local stroke = mk("UIStroke", spdFrame, {Color=CFG.ACCENT_COLOR, Thickness=1, Transparency=0.3, ZIndex=100001})
+        
+        local shadow = mk("ImageLabel", spdFrame, {Name="Shadow", Size=ud2(1,6,1,6), Position=ud2(0,-3,0,-3), BackgroundTransparency=1, Image="rbxassetid://5587865193", ImageColor3=Color3.new(0,0,0), ImageTransparency=0.6, ScaleType=Enum.ScaleType.Slice, SliceCenter=Rect.new(10,10,118,118), ZIndex=99999})
+        
+        spdText = mk("TextLabel", spdFrame, {Name="SpeedText", Size=ud2(1,0,1,0), BackgroundTransparency=1, Text="Speed: 0 studs/s", TextColor3=CFG.TEXT_COLOR, Font=Enum.Font.GothamBold, TextSize=12, ZIndex=100002})
+        
+        -- Drag handling
+        spdFrame.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+                spdDragging = true
+                spdDragStart = input.Position
+                local viewport = workspace.CurrentCamera.ViewportSize
+                local currentAbsX = spdFrame.Position.X.Scale * viewport.X + spdFrame.Position.X.Offset
+                local currentAbsY = spdFrame.Position.Y.Scale * viewport.Y + spdFrame.Position.Y.Offset
+                spdStartPos = UDim2.new(0, currentAbsX, 0, currentAbsY)
+                
+                input.Changed:Connect(function()
+                    if input.UserInputState == Enum.UserInputState.End then
+                        spdDragging = false
+                    end
+                end)
+            end
+        end)
+
+        spdFrame.InputChanged:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+                spdDragInput = input
+            end
+        end)
+        
+        return spdGui, spdFrame, spdText
+    end
+    
+    --[[ JITTER FLY UI CREATION ]]--
+    local function createJitterUpUI(activateCallback)
+        if jfUpGui then
+            jfUpGui:Destroy()
+            jfUpGui = nil
+            jfUpFrame = nil
+        end
+        
+        jfUpGui = mk("ScreenGui", plr:WaitForChild("PlayerGui"), {Name="TSOS_JitterUp", ResetOnSpawn=false, IgnoreGuiInset=true, DisplayOrder=999999999, ZIndexBehavior=Enum.ZIndexBehavior.Global})
+        
+        jfUpFrame = mk("TextButton", jfUpGui, {Name="JitterUpFrame", Size=ud2(0,120,0,50), Position=ud2(1,-130,0.5,-25), BackgroundColor3=c3(46,204,113), BackgroundTransparency=0.1, BorderSizePixel=0, Visible=true, ZIndex=10, Text="UP", TextColor3=CFG.TEXT_COLOR, Font=Enum.Font.GothamBold, TextSize=16, AutoButtonColor=false})
+        
+        mk("UICorner", jfUpFrame, {CornerRadius=UDim.new(0,8)})
+        mk("UIStroke", jfUpFrame, {Color=CFG.BORDER_COLOR, Thickness=2})
+        
+        jfUpFrame.MouseButton1Click:Connect(function()
+            jfUpFrame.BackgroundColor3 = c3(231,76,60)
+            task.delay(0.1, function()
+                jfUpFrame.BackgroundColor3 = c3(46,204,113)
+            end)
+            if activateCallback then activateCallback() end
+        end)
+        
+        return jfUpGui, jfUpFrame
+    end
+    
+    local function destroyJitterUI()
+        if jfUpGui then
+            jfUpGui:Destroy()
+            jfUpGui = nil
+            jfUpFrame = nil
+        end
+    end
+    
+    --[[ RAYFIELD INTEGRATION ]]--
+    local function loadRayfield(onSuccess, onFail, currentState, toggleFuncs)
+        local success, RayfieldLibrary = pcall(function()
+            return loadstring(game:HttpGet('https://raw.githubusercontent.com/SiriusSoftwareLtd/Rayfield/refs/heads/main/source.lua'))()
+        end)
+        
+        if not success or typeof(RayfieldLibrary) ~= "table" then
+            warn("Rayfield Load Failed: " .. tostring(RayfieldLibrary))
+            if onFail then onFail() end
+            return nil
+        end
+        
+        if not RayfieldLibrary.CreateWindow then
+            warn("Rayfield loaded but CreateWindow not found!")
+            if onFail then onFail() end
+            return nil
+        end
+        
+        local winSuccess, Window = pcall(function()
+            return RayfieldLibrary:CreateWindow({
+                Name = "TSOS - Rayfield Edition",
+                LoadingTitle = "The Script of Stuffs",
+                LoadingSubtitle = "Loading Rayfield Interface...",
+                ConfigurationSaving = {Enabled = false},
+                KeySystem = false,
+            })
+        end)
+        
+        if not winSuccess or not Window then
+            warn("Failed to create Rayfield window: " .. tostring(Window))
+            if onFail then onFail() end
+            return nil
+        end
+        
+        -- Store references for switching back
+        _G.TSOS_RayfieldLibrary = RayfieldLibrary
+        
+        local MovementTab = Window:CreateTab("Movement", "bolt")
+        local CombatTab = Window:CreateTab("Combat", "crosshair")
+        local PlayerTab = Window:CreateTab("Player", "user")
+        local VisualsTab = Window:CreateTab("Visuals", "eye")
+        local SettingsTab = Window:CreateTab("Settings", "settings")
+        
+        -- Movement Tab
+        MovementTab:CreateSection("Speed Boosts")
+        MovementTab:CreateToggle({Name = "Speed Boost 1", CurrentValue = currentState.bst == "Boost1", Flag = "RF_Spd1", 
+            Callback = function(v) if toggleFuncs.speed1 then toggleFuncs.speed1(v) end end})
+        MovementTab:CreateInput({Name = "Dynamic Speed Additive", CurrentValue = tostring(CFG.DYNAMIC_SPEED_ADDITIVE or 5), PlaceholderText = "5", RemoveTextAfterFocusLost = false, Flag = "RF_DynVal",
+            Callback = function(Text) local n = tonumber(Text) if n and CFG then CFG.DYNAMIC_SPEED_ADDITIVE = n end end})
+        MovementTab:CreateToggle({Name = "Speed Boost 2 (Dynamic)", CurrentValue = currentState.bst == "Boost2", Flag = "RF_Spd2",
+            Callback = function(v) if toggleFuncs.speed2 then toggleFuncs.speed2(v) end end})
+        
+        MovementTab:CreateSection("Movement Features")
+        MovementTab:CreateToggle({Name = "Jump Power Boost", CurrentValue = currentState.jmp, Flag = "RF_Jump",
+            Callback = function(v) if toggleFuncs.jump then toggleFuncs.jump(v) end end})
+        MovementTab:CreateToggle({Name = "Noclip", CurrentValue = currentState.nc, Flag = "RF_Noclip",
+            Callback = function(v) if toggleFuncs.noclip then toggleFuncs.noclip(v) end end})
+        MovementTab:CreateToggle({Name = "Speedometer", CurrentValue = currentState.spdo, Flag = "RF_Spdo",
+            Callback = function(v) if toggleFuncs.speedo then toggleFuncs.speedo(v) end end})
+        
+        MovementTab:CreateSection("Jitter Fly")
+        MovementTab:CreateToggle({Name = "Jitter Fly Mode", CurrentValue = currentState.jf, Flag = "RF_JitterFly",
+            Callback = function(v) if toggleFuncs.jitter then toggleFuncs.jitter(v) end end})
+        MovementTab:CreateParagraph({Title = "Jitter Fly Info", Content = "External 'UP' button appears when enabled. Spam click for instant nanosecond micro-hops ("..tostring(CFG.JITTER_DURATION or 0.001).."s duration). Speed: "..tostring(CFG.JITTER_SPEED or 1)})
+        
+        -- Combat Tab
+        CombatTab:CreateSection("Combat Features")
+        local hbOptions = {"Off", "On (No ESP)", "On (With ESP)"}
+        local hbCurrent = currentState.hb == 0 and "Off" or (currentState.hb == 1 and "On (No ESP)" or "On (With ESP)")
+        CombatTab:CreateDropdown({Name = "Hitbox Expander", Options = hbOptions, CurrentOption = hbCurrent, MultipleOptions = false, Flag = "RF_Hitbox",
+            Callback = function(opt) if toggleFuncs.hitbox then toggleFuncs.hitbox(opt) end end})
+        CombatTab:CreateToggle({Name = "Lag Switch", CurrentValue = currentState.lag, Flag = "RF_Lag",
+            Callback = function(v) if toggleFuncs.lag then toggleFuncs.lag(v) end end})
+        
+        -- Player Tab
+        PlayerTab:CreateSection("Character Mods")
+        PlayerTab:CreateToggle({Name = "Invisibility", CurrentValue = currentState.inv, Flag = "RF_Invis",
+            Callback = function(v) if toggleFuncs.invis then toggleFuncs.invis(v) end end})
+        PlayerTab:CreateToggle({Name = "Fullbright", CurrentValue = currentState.fb, Flag = "RF_Fb",
+            Callback = function(v) if toggleFuncs.fullbright then toggleFuncs.fullbright(v) end end})
+        PlayerTab:CreateToggle({Name = "Instant Interact", CurrentValue = currentState.inst, Flag = "RF_Inst",
+            Callback = function(v) if toggleFuncs.inst then toggleFuncs.inst(v) end end})
+        PlayerTab:CreateToggle({Name = "Unlimited Zoom", CurrentValue = currentState.zm, Flag = "RF_Zoom",
+            Callback = function(v) if toggleFuncs.zoom then toggleFuncs.zoom(v) end end})
+        PlayerTab:CreateToggle({Name = "Proximity Warning", CurrentValue = currentState.wrn, Flag = "RF_Warn",
+            Callback = function(v) if toggleFuncs.warn then toggleFuncs.warn(v) end end})
+        PlayerTab:CreateButton({Name = "Set Spawn Point", Callback = function() if toggleFuncs.spawn then toggleFuncs.spawn() end end})
+        
+        -- Visuals Tab
+        VisualsTab:CreateSection("ESP Controls")
+        local espOptions = {"Off", "All Players", "Enemy Off-Screen", "Names & Distance", "Chams Only"}
+        local espCurrent = currentState.esp == 0 and "Off" or (currentState.esp == 1 and "All Players" or currentState.esp == 2 and "Enemy Off-Screen" or currentState.esp == 3 and "Names & Distance" or "Chams Only")
+        VisualsTab:CreateDropdown({Name = "ESP Mode", Options = espOptions, CurrentOption = espCurrent, MultipleOptions = false, Flag = "RF_EspMode",
+            Callback = function(opt) if toggleFuncs.esp then toggleFuncs.esp(opt) end end})
+        
+        VisualsTab:CreateSection("Custom ESP")
+        local cespInput = VisualsTab:CreateInput({Name = "Search Keyword", CurrentValue = currentState.kw or "", PlaceholderText = "player, crate, etc", RemoveTextAfterFocusLost = false, Flag = "RF_CespKw"})
+        VisualsTab:CreateButton({Name = "Activate Custom ESP", Callback = function() if toggleFuncs.cesp then toggleFuncs.cesp(cespInput.CurrentValue or "") end end})
+        VisualsTab:CreateButton({Name = "Clear Custom ESP", Callback = function() if toggleFuncs.clearCesp then toggleFuncs.clearCesp() end end})
+        
+        -- Settings Tab with Switch Back button
+        SettingsTab:CreateSection("UI Options")
+        SettingsTab:CreateButton({
+            Name = "Switch to Custom UI",
+            Callback = function()
+                local TweenService = game:GetService("TweenService")
+                local RayfieldGui = CoreGui:FindFirstChild("Rayfield") or (gethui and gethui():FindFirstChild("Rayfield"))
+                
+                if not RayfieldGui then
+                    _G.TSOS_RayfieldLoaded = false
+                    _G.TSOS_RayfieldLibrary = nil
+                    if toggleFuncs.showCustom then toggleFuncs.showCustom() end
+                    return
+                end
+                
+                local Main = RayfieldGui:FindFirstChild("Main")
+                if Main then
+                    for _, child in ipairs(Main:GetDescendants()) do
+                        if child:IsA("Frame") then
+                            TweenService:Create(child, TweenInfo.new(0.25), {BackgroundTransparency = 1}):Play()
+                            local stroke = child:FindFirstChildOfClass("UIStroke")
+                            if stroke then TweenService:Create(stroke, TweenInfo.new(0.25), {Transparency = 1}):Play() end
+                        elseif child:IsA("TextLabel") or child:IsA("TextBox") or child:IsA("TextButton") then
+                            TweenService:Create(child, TweenInfo.new(0.2), {TextTransparency = 1, BackgroundTransparency = 1}):Play()
+                        elseif child:IsA("ImageLabel") or child:IsA("ImageButton") then
+                            TweenService:Create(child, TweenInfo.new(0.25), {ImageTransparency = 1, BackgroundTransparency = 1}):Play()
+                        elseif child:IsA("ScrollingFrame") then
+                            TweenService:Create(child, TweenInfo.new(0.25), {BackgroundTransparency = 1, ScrollBarImageTransparency = 1}):Play()
+                        end
+                    end
+                    
+                    TweenService:Create(Main, TweenInfo.new(0.3, Enum.EasingStyle.Quart), {BackgroundTransparency = 1}):Play()
+                    local Topbar = Main:FindFirstChild("Topbar")
+                    if Topbar then TweenService:Create(Topbar, TweenInfo.new(0.3), {BackgroundTransparency = 1}):Play() end
+                    TweenService:Create(Main, TweenInfo.new(0.4, Enum.EasingStyle.Exponential), {Size = ud2(0,495,0,45)}):Play()
+                end
+                
+                task.wait(0.3)
+                RayfieldGui:Destroy()
+                _G.TSOS_RayfieldLoaded = false
+                _G.TSOS_RayfieldLibrary = nil
+                
+                if toggleFuncs.showCustom then toggleFuncs.showCustom() end
+                
+                if not switchNotifShown then
+                    pcall(function()
+                        game:GetService("StarterGui"):SetCore("SendNotification", {
+                            Title = "UI Switched", Text = "Returned to Custom UI!", Duration = 3
+                        })
+                    end)
+                    switchNotifShown = true
+                end
+            end
+        })
+        
+        if onSuccess then onSuccess() end
+        return Window
+    end
+
+    --[[ MAIN UI CREATION ]]--
     if plr:WaitForChild("PlayerGui"):FindFirstChild("ToolsGUI") then plr.PlayerGui.ToolsGUI:Destroy() end
     gui = mk("ScreenGui", plr.PlayerGui, {Name="ToolsGUI", ResetOnSpawn=false, IgnoreGuiInset=true, DisplayOrder=9e8})
     ttFrm = mk("Frame", gui, {Name="TooltipFrame", BackgroundColor3=CFG.ACCENT_COLOR, BorderSizePixel=0, Visible=false, ZIndex=50, AutomaticSize=Enum.AutomaticSize.XY}); mk("UICorner", ttFrm, {CornerRadius=UDim.new(0,4)}); mk("UIPadding", ttFrm, {PaddingLeft=UDim.new(0,6), PaddingRight=UDim.new(0,6), PaddingTop=UDim.new(0,4), PaddingBottom=UDim.new(0,4)}); mk("UIStroke", ttFrm, {Color=CFG.BORDER_COLOR, Thickness=1}); ttLbl=mk("TextLabel", ttFrm, {BackgroundTransparency=1, TextColor3=CFG.TEXT_COLOR, Font=Enum.Font.Gotham, TextSize=8, AutomaticSize=Enum.AutomaticSize.XY, ZIndex=51})
@@ -122,16 +378,16 @@ return function(plr, CFG)
     end)
 
     cScrl = mk("ScrollingFrame", main, {Name="ConfigFrame", Size=ud2(1,-16,0,52), Position=ud2(0,8,0,36), BackgroundColor3=CFG.BACKGROUND_COLOR, ScrollBarThickness=2, CanvasSize=ud2(0,0,0,0), Visible=false, ScrollingDirection=Enum.ScrollingDirection.Y, ElasticBehavior=Enum.ElasticBehavior.Always}); local cfLL=mk("UIListLayout", cScrl, {Padding=UDim.new(0,4), HorizontalAlignment=Enum.HorizontalAlignment.Center}); mk("UIPadding", cScrl, {PaddingTop=UDim.new(0,4), PaddingBottom=UDim.new(0,4)})
-    local sNm={SPEED_1_KEY="SPD 1",SPEED_2_KEY="SPD 2",LAG_SWITCH_KEY="LAG KEY",INVISIBILITY_KEY="INVIS",FULLBRIGHT_KEY="F-BRIGHT",ESP_CHAMS_KEY="ESP KEY",RESET_KEY="RESET",NOCLIP_KEY="NOCLIP",SPEEDOMETER_KEY="SPEEDO",ZOOM_KEY="ZOOM",WARNING_KEY="WARN",CUSTOM_ESP_KEY="C-ESP",BOOSTED_SPEED_1="BST SPD 1",DYNAMIC_SPEED_ADDITIVE="DYN ADD",DEFAULT_JUMP="DEF JUMP",BOOSTED_JUMP="BST JUMP",HITBOX_SIZE="HB SIZE",MAX_ZOOM="MAX ZM",MIN_ZOOM="MIN ZM",WARNING_DISTANCE="WARN DIST",INVISIBILITY_POSITION="INVIS POS",RESET_COOLDOWN="RST CD",BACKGROUND_COLOR="BG CLR",ACCENT_COLOR="ACC CLR",TAB_COLOR="TAB CLR",BORDER_COLOR="BRDR CLR",TEXT_COLOR="TXT CLR",SECONDARY_TEXT_COLOR="SEC TXT",ESP_MAX_DISTANCE="ESP MAX",ESP_NEAR_DISTANCE="ESP NEAR",JITTER_FLY_SPEED="JF SPEED"}
-    local pK, oK = {"BOOSTED_SPEED_1","DYNAMIC_SPEED_ADDITIVE","DEFAULT_JUMP","BOOSTED_JUMP","HITBOX_SIZE","MAX_ZOOM","MIN_ZOOM","WARNING_DISTANCE","JITTER_FLY_SPEED"}, {}; for k,_ in pairs(CFG) do if not table.find(pK,k) then table.insert(oK,k) end end; table.sort(oK); local sk={}; for _,k in ipairs(pK) do table.insert(sk,k) end; for _,k in ipairs(oK) do table.insert(sk,k) end
+    local sNm={SPEED_1_KEY="SPD 1",SPEED_2_KEY="SPD 2",LAG_SWITCH_KEY="LAG KEY",INVISIBILITY_KEY="INVIS",FULLBRIGHT_KEY="F-BRIGHT",ESP_CHAMS_KEY="ESP KEY",RESET_KEY="RESET",NOCLIP_KEY="NOCLIP",SPEEDOMETER_KEY="SPEEDO",ZOOM_KEY="ZOOM",WARNING_KEY="WARN",CUSTOM_ESP_KEY="C-ESP",BOOSTED_SPEED_1="BST SPD 1",DYNAMIC_SPEED_ADDITIVE="DYN ADD",DEFAULT_JUMP="DEF JUMP",BOOSTED_JUMP="BST JUMP",HITBOX_SIZE="HB SIZE",MAX_ZOOM="MAX ZM",MIN_ZOOM="MIN ZM",WARNING_DISTANCE="WARN DIST",INVISIBILITY_POSITION="INVIS POS",RESET_COOLDOWN="RST CD",BACKGROUND_COLOR="BG CLR",ACCENT_COLOR="ACC CLR",TAB_COLOR="TAB CLR",BORDER_COLOR="BRDR CLR",TEXT_COLOR="TXT CLR",SECONDARY_TEXT_COLOR="SEC TXT",ESP_MAX_DISTANCE="ESP MAX",ESP_NEAR_DISTANCE="ESP NEAR",JITTER_SPEED="JF SPEED",JITTER_DURATION="JF DUR",LAG_SWITCH_SPEED="LAG SPD"}
+    local pK, oK = {"BOOSTED_SPEED_1","DYNAMIC_SPEED_ADDITIVE","DEFAULT_JUMP","BOOSTED_JUMP","HITBOX_SIZE","MAX_ZOOM","MIN_ZOOM","WARNING_DISTANCE","JITTER_SPEED","JITTER_DURATION","LAG_SWITCH_SPEED"}, {}; for k,_ in pairs(CFG) do if not table.find(pK,k) then table.insert(oK,k) end end; table.sort(oK); local sk={}; for _,k in ipairs(pK) do table.insert(sk,k) end; for _,k in ipairs(oK) do table.insert(sk,k) end
     for _, k in ipairs(sk) do local r=mk("Frame", cScrl, {Size=ud2(0.92,0,0,20), BackgroundTransparency=1}); local l=mk("TextLabel", r, {Size=ud2(0.5,0,1,0), BackgroundTransparency=1, Text=sNm[k] or k, TextColor3=CFG.TEXT_COLOR, TextXAlignment=Enum.TextXAlignment.Center, Font=Enum.Font.Gotham, TextSize=7, TextTransparency=1, Active=true})
         local showTt=function() ttLbl.Text=k; ttFrm.AnchorPoint=Vector2.new(0.5,1); ttFrm.Position=ud2(0,tTabBg.AbsolutePosition.X+(tTabBg.AbsoluteSize.X/2),0,tTabBg.AbsolutePosition.Y-5); ttFrm.Visible=true end; l.MouseEnter:Connect(showTt); l.MouseLeave:Connect(function() ttFrm.Visible=false end); l.InputBegan:Connect(function(ip) if ip.UserInputType==Enum.UserInputType.Touch then showTt() end end); l.InputEnded:Connect(function(ip) if ip.UserInputType==Enum.UserInputType.Touch then ttFrm.Visible=false end end)
         local bb=mk("Frame", r, {Size=ud2(0.5,-4,1,0), Position=ud2(0.5,2,0,0), BackgroundColor3=CFG.ACCENT_COLOR, BackgroundTransparency=1, BorderSizePixel=0, ClipsDescendants=true}); mk("UICorner", bb, {CornerRadius=UDim.new(0,4)}); mk("UIStroke", bb, {Color=CFG.BORDER_COLOR, Thickness=1, Transparency=1}); local bx=mk("TextBox", bb, {Size=ud2(1,-4,1,0), Position=ud2(0,2,0,0), BackgroundTransparency=1, Text=toStr(CFG[k]), TextColor3=CFG.SECONDARY_TEXT_COLOR, Font=Enum.Font.Gotham, TextSize=7, TextTransparency=1, ClearTextOnFocus=false, ClipsDescendants=true})
         bx.FocusLost:Connect(function() local pv=pVal(CFG[k], bx.Text); CFG[k]=pv; bx.Text=toStr(pv) end) end
     cfLL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() cScrl.CanvasSize=ud2(0,0,0,cfLL.AbsoluteContentSize.Y+10) end)
     
-    -- NEW: Rayfield Switch Button
-    bRayfield = crStylB(cScrl, ud2(0.92,0,0,20), ud2(0,0,0,0), "Switch to Rayfield", c3(142, 68, 173))
+    -- Rayfield Switch Button in Config
+    bRayfield = crStylB(cScrl, ud2(0.92,0,0,20), ud2(0,0,0,0), "Switch to Rayfield", c3(142,68,173))
     bRayfield.LayoutOrder = 1000
     
     local function sB(nm, tx)
@@ -142,13 +398,13 @@ return function(plr, CFG)
         local u=function() if isAnimating then return end tw(b, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size=ud2(0.92,0,0,20)}) end; b.MouseButton1Up:Connect(u); b.MouseLeave:Connect(u); table.insert(btns, b); return b
     end
 
-    -- All 16 buttons including new Jitter Fly button (was Elevator)
+    -- All 16 buttons including Jitter Fly
     bSpd1,bSpd2,bJmp,bNc,bHb,bLag,bInv,bFb,bEsp,bCesp,bInst,bSpdo,bZm,bWrn,bRst,bJf = sB("S1","SPEED BOOST 1"),sB("S2","DYNAMIC SPD"),sB("JP","JUMP POWER"),sB("NC","NOCLIP"),sB("HB","HITBOX OFF"),sB("LS","LAG SWITCH"),sB("IV","INVISIBLE"),sB("FB","FULLBRIGHT"),sB("ESP","ESP CHAMS"),sB("CESP","CUSTOM ESP"),sB("IN","INSTANT INTERACT"),sB("SPD","SPEEDOMETER"),sB("ZM","UNLIMITED ZOOM"),sB("WRN","PROXIMITY WARN"),sB("RST","SET SPAWN"),sB("JF","JITTER FLY")
     spdoLbl=mk("TextLabel", main, {Size=ud2(1,-10,0,12), Position=ud2(0,5,1,-34), Text="Speed: 0 studs/s", BackgroundTransparency=1, TextColor3=c3(255,255,255), Font=Enum.Font.GothamBold, TextSize=8, TextTransparency=1, Visible=false})
     stLbl=mk("TextLabel", main, {Size=ud2(1,-10,0,12), Position=ud2(0,5,1,-22), Text="Ready", BackgroundTransparency=1, TextColor3=CFG.SECONDARY_TEXT_COLOR, Font=Enum.Font.Gotham, TextSize=8, TextTransparency=1})
     sigLbl=mk("TextLabel", main, {Size=ud2(1,0,0,10), Position=ud2(0,0,1,-10), Text="The Script of Stuffs", BackgroundTransparency=1, TextColor3=CFG.SECONDARY_TEXT_COLOR, Font=Enum.Font.Gotham, TextSize=7, TextTransparency=1})
 
-    -- Robust Momentum-Aware Scroll Snapping from Script 1
+    -- Momentum-Aware Scroll Snapping
     local lastScrollTimes = {}
     local snapDebounce = {}
 
@@ -196,13 +452,11 @@ return function(plr, CFG)
     local function trnMnu(f, s1, t, s2) setA(1); task.wait(0.1); tw(main, tSmth, {Size=ud2(0,120,0,22)}, true); fdMnu(1, true); local cp=main.Position; tw(main, tSmth, {Size=ud2(0,0,0,22), Position=ud2(cp.X.Scale, cp.X.Offset+60, cp.Y.Scale, cp.Y.Offset)}, true); main.Visible=false; if t then t.Size, t.Position, t.Visible = ud2(0,0,0, t==cnfFrm and 0 or 22), ud2(0.5,0,0.5,0), true; tw(t, tBnc, {Size=s2, Position=ud2(0.5, -s2.X.Offset/2, 0.5, -s2.Y.Offset/2)}, true) end end
     
     local function unTrn(t) tw(t, tBncIn, {Size=ud2(0,0,0,0), Position=ud2(0.5,0,0.5,0)}, true); t.Visible=false; local cx=lastPos.X; main.Size, main.Position, main.Visible = ud2(0,0,0,22), ud2(cx.Scale,cx.Offset+60,lastPos.Y.Scale,lastPos.Y.Offset), true; tw(main, tSmth, {Size=ud2(0,120,0,22), Position=lastPos}, true); fdMnu(0, true); shwUi(true, 120, 118); setA(0) end
-    
     local function tgBtns(a, d) for _,b in ipairs(btns) do tw(b, tFast, {TextTransparency=a}); local bg=b:FindFirstChild("Background"); if bg then tw(bg, tFast, {BackgroundTransparency=a}); local st=bg:FindFirstChildOfClass("UIStroke"); if st then tw(st, tFast, {Transparency=a}) end end; if d then task.wait(d) end end end
-    local function tgCfg(a) for _,r in ipairs(cScrl:GetChildren()) do if r:IsA("Frame") then local l,bg=r:FindFirstChildOfClass("TextLabel"),r:FindFirstChild("Frame"); if l then tw(l,tFast,{TextTransparency=a}) end; if bg then tw(bg,tFast,{BackgroundTransparency=a}); local s,bx=bg:FindFirstChildOfClass("UIStroke"),bg:FindFirstChildOfClass("TextBox"); if s then tw(s,tFast,{Transparency=a}) end; if bx then tw(bx,tFast,{TextTransparency=a}) end end end end end
+    local function tgCfg(a) for _,r in ipairs(cScrl:GetChildren()) do if r:IsA("Frame") then local l,bg=r:FindFirstChildOfClass("TextLabel"),r:FindFirstChild("Frame"); if l then tw(l,tFast,{TextTransparency=a}) end; if bg then tw(bg,tFast,{BackgroundTransparency=a}); local s,bx=bg:FindFirstChildOfClass("UIStroke"),bg:FindFirstChildOfClass("TextBox"); if s then tw(s,tFast,{Transparency=a}) end; if bx then tw(bx,tFast,{TextTransparency=a}) end end end end; if bRayfield then tw(bRayfield, tFast, {TextTransparency=a}); local bg=bRayfield:FindFirstChild("Background"); if bg then tw(bg,tFast,{BackgroundTransparency=a}) end; local st=bRayfield:FindFirstChildOfClass("UIStroke"); if st then tw(st,tFast,{Transparency=a}) end end end end
     local function cnfEx(v) tw(cnfLbl,tFast,{TextTransparency=v}); tw(bYes,tFast,{TextTransparency=v}); tw(bNo,tFast,{TextTransparency=v}); tw(bYes.Background,tFast,{BackgroundTransparency=v}); tw(bNo.Background,tFast,{BackgroundTransparency=v}); tw(bYes.Background.UIStroke,tFast,{Transparency=v}); tw(bNo.Background.UIStroke,tFast,{Transparency=v==0 and 1 or 1}) end
     local function inEx(v) tw(inBox,tFast,{TextTransparency=v}); tw(bSrch,tFast,{TextTransparency=v}); tw(bCnc,tFast,{TextTransparency=v}); tw(bSrch.Background,tFast,{BackgroundTransparency=v}); tw(bCnc.Background,tFast,{BackgroundTransparency=v}); tw(bSrch.Background.UIStroke,tFast,{Transparency=v}); tw(bCnc.Background.UIStroke,tFast,{Transparency=1}) end
 
-    -- API Definition
     local UI_API = {}
 
     function UI_API.playAnim()
@@ -292,7 +546,7 @@ return function(plr, CFG)
 
     function UI_API.setStatus(tx, clr) stLbl.Text = tx; stLbl.TextColor3 = clr or CFG.SECONDARY_TEXT_COLOR end
     function UI_API.setButtonState(b, txt, isActive) if txt then b.Text = txt end; stBAct(b, isActive) end
-    function UI_API.updateSpeedometerText(txt) spdoLbl.Text = txt end
+    function UI_API.updateSpeedometerText(txt) if spdText then spdText.Text = txt end end
     function UI_API.toggleSpeedometerVisibility(isVisible) stLbl.Visible = not isVisible; spdoLbl.Visible = isVisible; spdoLbl.Position = isVisible and ud2(0,5,1,-22) or ud2(0,5,1,-34) end
     function UI_API.sendNotif(title, text, dur) SG:SetCore("SendNotification", {Title=title, Text=text, Duration=dur}) end
     function UI_API.rndBClr() rndBClr() end
@@ -320,6 +574,7 @@ return function(plr, CFG)
         wrnGui.Adornee = hrp
         wrnGui.Enabled = isVisible
     end
+    
     function UI_API.clearWarningGui() if wrnGui then wrnGui:Destroy() wrnGui=nil end end
 
     function UI_API.setCharacterTransparency(char, alpha)
@@ -329,6 +584,7 @@ return function(plr, CFG)
     function UI_API.addCustomHighlight(obj)
         if not obj:FindFirstChild("CustomEspH") then table.insert(cEspHL, mk("Highlight", obj, {Name="CustomEspH", FillColor=c3(0,255,255), OutlineColor=c3(255,255,255), FillTransparency=0.5, OutlineTransparency=0.1, DepthMode=Enum.HighlightDepthMode.AlwaysOnTop})) end
     end
+    
     function UI_API.clearCustomHighlights()
         for _, h in ipairs(cEspHL) do if h then h:Destroy() end end; cEspHL={}
     end
@@ -369,6 +625,7 @@ return function(plr, CFG)
         if espTg[p] then espTg[p]:Destroy() espTg[p]=nil end
         if espOff[p] then espOff[p]:Destroy() espOff[p]=nil end
     end
+    
     function UI_API.clearAllEsp()
         for _, h in pairs(espHL) do if h then h:Destroy() end end; espHL={}
         for _, t in pairs(espTg) do if t then t:Destroy() end end; espTg={}
@@ -376,301 +633,183 @@ return function(plr, CFG)
     end
 
     function UI_API.destroyGui() gui:Destroy() end
-
-    -- NEW: Speedometer UI Creation
-    function UI_API.createSpeedometer(st, updateDragCallback)
-        local spdGui, spdFrame, spdText
+    
+    --[[ EVENT CONNECTION SETUP ]]--
+    function UI_API.connectEvents(callbacks)
+        -- Logo/Config toggle
+        logo.MouseButton1Click:Connect(function() UI_API.toggleConfigMenu(not cScrl.Visible) end)
         
-        local function create()
-            if spdGui then 
-                spdGui:Destroy() 
-                spdGui = nil
+        -- Main buttons
+        bSpd1.MouseButton1Click:Connect(function() if callbacks.toggleSpeed1 then callbacks.toggleSpeed1() end end)
+        bSpd2.MouseButton1Click:Connect(function() 
+            if callbacks.setDynamicValue then 
+                UI_API.showInput(tostring(CFG.DYNAMIC_SPEED_ADDITIVE or 5), "Add to Speed (e.g. 5)", "APPLY")
+            end
+        end)
+        bJmp.MouseButton1Click:Connect(function() if callbacks.toggleJump then callbacks.toggleJump() end end)
+        bNc.MouseButton1Click:Connect(function() if callbacks.toggleNoclip then callbacks.toggleNoclip() end end)
+        bHb.MouseButton1Click:Connect(function() if callbacks.toggleHitbox then callbacks.toggleHitbox() end end)
+        bLag.MouseButton1Click:Connect(function() if callbacks.toggleLag then callbacks.toggleLag() end end)
+        bInv.MouseButton1Click:Connect(function() if callbacks.toggleInvis then callbacks.toggleInvis() end end)
+        bFb.MouseButton1Click:Connect(function() if callbacks.toggleFullbright then callbacks.toggleFullbright() end end)
+        bEsp.MouseButton1Click:Connect(function() if callbacks.toggleEsp then callbacks.toggleEsp() end end)
+        bCesp.MouseButton1Click:Connect(function() 
+            if callbacks.toggleCustomEsp then 
+                UI_API.showInput("", "Enter search keyword...", "SEARCH")
+            end
+        end)
+        bInst.MouseButton1Click:Connect(function() if callbacks.toggleInst then callbacks.toggleInst() end end)
+        bSpdo.MouseButton1Click:Connect(function() if callbacks.toggleSpeedo then callbacks.toggleSpeedo() end end)
+        bZm.MouseButton1Click:Connect(function() if callbacks.toggleZoom then callbacks.toggleZoom() end end)
+        bWrn.MouseButton1Click:Connect(function() if callbacks.toggleWarn then callbacks.toggleWarn() end end)
+        bRst.MouseButton1Click:Connect(function() if callbacks.toggleSpawn then callbacks.toggleSpawn() end end)
+        bJf.MouseButton1Click:Connect(function() if callbacks.toggleJitter then callbacks.toggleJitter() end end)
+        
+        -- Rayfield Switch
+        bRayfield.MouseButton1Click:Connect(function() 
+            if _G.TSOS_RayfieldLoaded and not _G.TSOS_RayfieldLibrary then 
+                _G.TSOS_RayfieldLoaded = false 
+            end
+            if _G.TSOS_RayfieldLoaded then 
+                UI_API.sendNotif("Error", "Rayfield already loaded!", 3) 
+                return 
             end
             
-            spdGui = Instance.new("ScreenGui")
-            spdGui.Name = "TSOS_Speedometer"
-            spdGui.ResetOnSpawn = false
-            spdGui.IgnoreGuiInset = true
-            spdGui.DisplayOrder = 100000
-            spdGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
-            spdGui.Parent = plr:WaitForChild("PlayerGui")
+            local currentState = {
+                bst = callbacks.getState and callbacks.getState("bst") or "None",
+                lag = callbacks.getState and callbacks.getState("lag") or false,
+                inv = callbacks.getState and callbacks.getState("inv") or false,
+                fb = callbacks.getState and callbacks.getState("fb") or false,
+                nc = callbacks.getState and callbacks.getState("nc") or false,
+                hb = callbacks.getState and callbacks.getState("hb") or 0,
+                jmp = callbacks.getState and callbacks.getState("jmp") or false,
+                inst = callbacks.getState and callbacks.getState("inst") or false,
+                spdo = callbacks.getState and callbacks.getState("spdo") or false,
+                zm = callbacks.getState and callbacks.getState("zm") or false,
+                wrn = callbacks.getState and callbacks.getState("wrn") or false,
+                esp = callbacks.getState and callbacks.getState("esp") or 0,
+                jf = callbacks.getState and callbacks.getState("jf") or false,
+                kw = callbacks.getState and callbacks.getState("kw") or ""
+            }
             
-            spdFrame = Instance.new("TextButton")
-            spdFrame.Name = "SpeedFrame"
-            spdFrame.Size = ud2(0, 140, 0, 28)
-            
-            if spdUILastPos then
-                spdFrame.Position = spdUILastPos
-            else
-                spdFrame.Position = ud2(0.5, -70, 0, 8)
-            end
-            
-            spdFrame.BackgroundColor3 = CFG.BACKGROUND_COLOR
-            spdFrame.BackgroundTransparency = 0.15
-            spdFrame.BorderSizePixel = 0
-            spdFrame.Visible = st.spdo
-            spdFrame.ZIndex = 100000
-            spdFrame.Text = ""
-            spdFrame.AutoButtonColor = false
-            spdFrame.Parent = spdGui
-            
-            local corner = Instance.new("UICorner")
-            corner.CornerRadius = UDim.new(0, 6)
-            corner.Parent = spdFrame
-            
-            local stroke = Instance.new("UIStroke")
-            stroke.Color = CFG.ACCENT_COLOR
-            stroke.Thickness = 1
-            stroke.Transparency = 0.3
-            stroke.ZIndex = 100001
-            stroke.Parent = spdFrame
-            
-            local shadow = Instance.new("ImageLabel")
-            shadow.Name = "Shadow"
-            shadow.Size = ud2(1, 6, 1, 6)
-            shadow.Position = ud2(0, -3, 0, -3)
-            shadow.BackgroundTransparency = 1
-            shadow.Image = "rbxassetid://5587865193"
-            shadow.ImageColor3 = Color3.new(0, 0, 0)
-            shadow.ImageTransparency = 0.6
-            shadow.ScaleType = Enum.ScaleType.Slice
-            shadow.SliceCenter = Rect.new(10, 10, 118, 118)
-            shadow.ZIndex = 99999
-            shadow.Parent = spdFrame
-            
-            spdText = Instance.new("TextLabel")
-            spdText.Name = "SpeedText"
-            spdText.Size = ud2(1, 0, 1, 0)
-            spdText.BackgroundTransparency = 1
-            spdText.Text = "Speed: 0 studs/s"
-            spdText.TextColor3 = CFG.TEXT_COLOR
-            spdText.Font = Enum.Font.GothamBold
-            spdText.TextSize = 12
-            spdText.ZIndex = 100002
-            spdText.Parent = spdFrame
-            
-            spdFrame.InputBegan:Connect(function(input)
-                if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
-                    spdDragging = true
-                    spdDragStart = input.Position
-                    local viewport = workspace.CurrentCamera.ViewportSize
-                    local currentAbsX = spdFrame.Position.X.Scale * viewport.X + spdFrame.Position.X.Offset
-                    local currentAbsY = spdFrame.Position.Y.Scale * viewport.Y + spdFrame.Position.Y.Offset
-                    spdStartPos = ud2(0, currentAbsX, 0, currentAbsY)
-
-                    input.Changed:Connect(function()
-                        if input.UserInputState == Enum.UserInputState.End then
-                            spdDragging = false
-                        end
-                    end)
-                end
-            end)
-
-            spdFrame.InputChanged:Connect(function(input)
-                if (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-                    spdDragInput = input
-                end
-            end)
-        end
-        
-        create()
-        
-        return {
-            gui = spdGui,
-            frame = spdFrame,
-            text = spdText,
-            setDragPos = function(pos) spdUILastPos = pos end,
-            getDragPos = function() return spdUILastPos end,
-            isDragging = function() return spdDragging end,
-            getDragInput = function() return spdDragInput end,
-            setLastPos = function(pos) 
-                spdUILastPos = pos
-                if spdFrame then spdFrame.Position = pos end
-            end
-        }
-    end
-
-    -- NEW: Jitter Fly UI Creation
-    function UI_API.createJitterFly(st, onActivate)
-        local jfUpGui, jfUpFrame
-        
-        local function create()
-            if jfUpGui then
-                jfUpGui:Destroy()
-                jfUpGui = nil
-            end
-            
-            jfUpGui = Instance.new("ScreenGui")
-            jfUpGui.Name = "TSOS_JitterUp"
-            jfUpGui.ResetOnSpawn = false
-            jfUpGui.IgnoreGuiInset = true
-            jfUpGui.DisplayOrder = 999999999
-            jfUpGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
-            jfUpGui.Parent = plr:WaitForChild("PlayerGui")
-            
-            jfUpFrame = Instance.new("TextButton")
-            jfUpFrame.Name = "JitterUpFrame"
-            jfUpFrame.Size = ud2(0, 120, 0, 50)
-            jfUpFrame.Position = ud2(1, -130, 0.5, -25)
-            jfUpFrame.BackgroundColor3 = c3(46, 204, 113)
-            jfUpFrame.BackgroundTransparency = 0.1
-            jfUpFrame.BorderSizePixel = 0
-            jfUpFrame.Visible = true
-            jfUpFrame.ZIndex = 10
-            jfUpFrame.Text = "UP"
-            jfUpFrame.TextColor3 = CFG.TEXT_COLOR
-            jfUpFrame.Font = Enum.Font.GothamBold
-            jfUpFrame.TextSize = 16
-            jfUpFrame.AutoButtonColor = false
-            jfUpFrame.Parent = jfUpGui
-            
-            local corner = Instance.new("UICorner")
-            corner.CornerRadius = UDim.new(0, 8)
-            corner.Parent = jfUpFrame
-            
-            local stroke = Instance.new("UIStroke")
-            stroke.Color = CFG.BORDER_COLOR
-            stroke.Thickness = 2
-            stroke.Parent = jfUpFrame
-            
-            jfUpFrame.MouseButton1Click:Connect(function()
-                jfUpFrame.BackgroundColor3 = c3(231, 76, 60)
-                task.delay(0.1, function()
-                    jfUpFrame.BackgroundColor3 = c3(46, 204, 113)
-                end)
-                
-                if onActivate then onActivate() end
-            end)
-        end
-        
-        if st.jf then
-            create()
-        end
-        
-        return {
-            gui = jfUpGui,
-            frame = jfUpFrame,
-            destroy = function() 
-                if jfUpGui then jfUpGui:Destroy() end
-                jfUpGui = nil
-            end,
-            recreate = create
-        }
-    end
-
-    -- NEW: Rayfield UI Creation
-    function UI_API.loadRayfield(st, callbacks)
-        local success, RayfieldLibrary = pcall(function()
-            return loadstring(game:HttpGet('https://raw.githubusercontent.com/SiriusSoftwareLtd/Rayfield/refs/heads/main/source.lua'))()
+            UI_API.minimize(function()
+                _G.TSOS_RayfieldLoaded = true
+                loadRayfield(nil, function()
+                    _G.TSOS_RayfieldLoaded = false
+                    UI_API.maximize()
+                end, currentState, {
+                    speed1 = callbacks.toggleSpeed1,
+                    speed2 = callbacks.toggleSpeed2,
+                    jump = callbacks.toggleJump,
+                    noclip = callbacks.toggleNoclip,
+                    hitbox = callbacks.toggleHitbox,
+                    lag = callbacks.toggleLag,
+                    invis = callbacks.toggleInvis,
+                    fullbright = callbacks.toggleFullbright,
+                    esp = callbacks.toggleEsp,
+                    jitter = callbacks.toggleJitter,
+                    speedo = callbacks.toggleSpeedo,
+                    zoom = callbacks.toggleZoom,
+                    warn = callbacks.toggleWarn,
+                    spawn = callbacks.toggleSpawn,
+                    inst = callbacks.toggleInst,
+                    cesp = callbacks.runCustomEsp,
+                    clearCesp = callbacks.clearCustomEsp,
+                    showCustom = function()
+                        _G.TSOS_RayfieldLoaded = false
+                        UI_API.maximize()
+                    end
+                })
+            end, true)
         end)
         
-        if not success or typeof(RayfieldLibrary) ~= "table" then
-            warn("Rayfield Load Failed: " .. tostring(RayfieldLibrary))
-            if callbacks.onLoadFail then callbacks.onLoadFail() end
-            return nil
-        end
-        
-        if not RayfieldLibrary.CreateWindow then
-            warn("Rayfield loaded but CreateWindow not found!")
-            if callbacks.onLoadFail then callbacks.onLoadFail() end
-            return nil
-        end
-        
-        local winSuccess, Window = pcall(function()
-            return RayfieldLibrary:CreateWindow({
-                Name = "TSOS - Rayfield Edition",
-                LoadingTitle = "The Script of Stuffs",
-                LoadingSubtitle = "Loading Rayfield Interface...",
-                ConfigurationSaving = {
-                    Enabled = false,
-                },
-                KeySystem = false,
-            })
+        -- Search/Input buttons
+        bSrch.MouseButton1Click:Connect(function() 
+            local isApp = bSrch.Text == "APPLY"
+            UI_API.hideInput()
+            if isApp then 
+                local v = tonumber(inBox.Text)
+                if v and CFG then CFG.DYNAMIC_SPEED_ADDITIVE = v end
+                if callbacks.toggleSpeed2 then callbacks.toggleSpeed2(true) end
+            else 
+                if inBox.Text ~= "" and callbacks.runCustomEsp then callbacks.runCustomEsp(inBox.Text) end
+            end
         end)
         
-        if not winSuccess or not Window then
-            warn("Failed to create Rayfield window: " .. tostring(Window))
-            if callbacks.onLoadFail then callbacks.onLoadFail() end
-            return nil
-        end
+        bCnc.MouseButton1Click:Connect(function() UI_API.hideInput() end)
         
-        local MovementTab = Window:CreateTab("Movement", "bolt")
-        local CombatTab = Window:CreateTab("Combat", "crosshair")
-        local PlayerTab = Window:CreateTab("Player", "user")
-        local VisualsTab = Window:CreateTab("Visuals", "eye")
-        local SettingsTab = Window:CreateTab("Settings", "settings")
+        -- Confirm dialog
+        bCls.MouseButton1Click:Connect(function() UI_API.showConfirm() end)
+        bYes.MouseButton1Click:Connect(function() 
+            if callbacks.unloadScript then callbacks.unloadScript() end
+            UI_API.hideConfirmHard()
+            UI_API.destroyGui()
+        end)
+        bNo.MouseButton1Click:Connect(function() UI_API.hideConfirm() end)
         
-        -- Movement Tab
-        MovementTab:CreateSection("Speed Boosts")
-        MovementTab:CreateToggle({Name = "Speed Boost 1", CurrentValue = st.bst == "Boost1", Flag = "RF_Spd1", Callback = function(v) if v and st.bst ~= "Boost1" then callbacks.tgSpcBst("Boost1") elseif not v and st.bst == "Boost1" then callbacks.tgSpcBst("Boost1") end end})
-        MovementTab:CreateInput({Name = "Dynamic Speed Additive", CurrentValue = tostring(CFG.DYNAMIC_SPEED_ADDITIVE), PlaceholderText = "5", RemoveTextAfterFocusLost = false, Flag = "RF_DynVal", Callback = function(Text) local n = tonumber(Text) if n then CFG.DYNAMIC_SPEED_ADDITIVE = n end end})
-        MovementTab:CreateToggle({Name = "Speed Boost 2 (Dynamic)", CurrentValue = st.bst == "Boost2", Flag = "RF_Spd2", Callback = function(v) if v and st.bst ~= "Boost2" then callbacks.tgSpcBst("Boost2") elseif not v and st.bst == "Boost2" then callbacks.tgSpcBst("Boost2") end end})
-        
-        MovementTab:CreateSection("Movement Features")
-        MovementTab:CreateToggle({Name = "Jump Power Boost", CurrentValue = st.jmp, Flag = "RF_Jump", Callback = function(v) if v ~= st.jmp then callbacks.tgJmp() end end})
-        MovementTab:CreateToggle({Name = "Noclip", CurrentValue = st.nc, Flag = "RF_Noclip", Callback = function(v) if v ~= st.nc then callbacks.tgNc() end end})
-        MovementTab:CreateToggle({Name = "Speedometer", CurrentValue = st.spdo, Flag = "RF_Spdo", Callback = function(v) if v ~= st.spdo then callbacks.tgSpdo() end end})
-        
-        MovementTab:CreateSection("Jitter Fly")
-        MovementTab:CreateToggle({Name = "Jitter Fly Mode", CurrentValue = st.jf, Flag = "RF_JitterFly", Callback = function(v) if v ~= st.jf then callbacks.tgJf() end end})
-        MovementTab:CreateParagraph({Title = "Jitter Fly Info", Content = "External 'UP' button appears when enabled. Spam click for instant nanosecond micro-hops ("..tostring(CFG.JITTER_DURATION).."s duration). Speed: "..tostring(CFG.JITTER_SPEED)})
-        
-        -- Combat Tab
-        CombatTab:CreateSection("Combat Features")
-        CombatTab:CreateDropdown({Name = "Hitbox Expander", Options = {"Off", "On (No ESP)", "On (With ESP)"}, CurrentOption = st.hb == 0 and "Off" or (st.hb == 1 and "On (No ESP)" or "On (With ESP)"), MultipleOptions = false, Flag = "RF_Hitbox", Callback = function(opt) local s = type(opt) == "table" and opt[1] or opt; local t = (s=="Off" and 0 or (s=="On (No ESP)" and 1 or 2)); while st.hb ~= t do callbacks.tgHb() task.wait(0.01) end end})
-        CombatTab:CreateToggle({Name = "Lag Switch", CurrentValue = st.lag, Flag = "RF_Lag", Callback = function(v) if v ~= st.lag then callbacks.tgLag() end end})
-        
-        -- Player Tab
-        PlayerTab:CreateSection("Character Mods")
-        PlayerTab:CreateToggle({Name = "Invisibility", CurrentValue = st.inv, Flag = "RF_Invis", Callback = function(v) if v ~= st.inv then callbacks.tgInv() end end})
-        PlayerTab:CreateToggle({Name = "Fullbright", CurrentValue = st.fb, Flag = "RF_Fb", Callback = function(v) if v ~= st.fb then callbacks.tgFb() end end})
-        PlayerTab:CreateToggle({Name = "Instant Interact", CurrentValue = st.inst, Flag = "RF_Inst", Callback = function(v) if v ~= st.inst then callbacks.tgInst() end end})
-        PlayerTab:CreateToggle({Name = "Unlimited Zoom", CurrentValue = st.zm, Flag = "RF_Zoom", Callback = function(v) if v ~= st.zm then callbacks.tgZm() end end})
-        PlayerTab:CreateToggle({Name = "Proximity Warning", CurrentValue = st.wrn, Flag = "RF_Warn", Callback = function(v) if v ~= st.wrn then callbacks.tgWrn() end end})
-        PlayerTab:CreateButton({Name = "Set Spawn Point", Callback = function() callbacks.tgSpn() end})
-        
-        -- Visuals Tab
-        VisualsTab:CreateSection("ESP Controls")
-        VisualsTab:CreateDropdown({Name = "ESP Mode", Options = {"Off", "All Players", "Enemy Off-Screen", "Names & Distance", "Chams Only"}, CurrentOption = st.esp == 0 and "Off" or (st.esp == 1 and "All Players" or st.esp == 2 and "Enemy Off-Screen" or st.esp == 3 and "Names & Distance" or "Chams Only"), MultipleOptions = false, Flag = "RF_EspMode", Callback = function(opt) local s = type(opt) == "table" and opt[1] or opt; local t = (s=="Off" and 0 or (s=="All Players" and 1 or (s=="Enemy Off-Screen" and 2 or (s=="Names & Distance" and 3 or 4)))); callbacks.setEspState(t) end})
-        
-        VisualsTab:CreateSection("Custom ESP")
-        local cespInput = VisualsTab:CreateInput({Name = "Search Keyword", CurrentValue = st.kw, PlaceholderText = "player, crate, etc", RemoveTextAfterFocusLost = false, Flag = "RF_CespKw", Callback = function() end})
-        VisualsTab:CreateButton({Name = "Activate Custom ESP", Callback = function() if st.cesp then callbacks.tgCEsp() end; callbacks.runCEsp(cespInput.CurrentValue or "") end})
-        VisualsTab:CreateButton({Name = "Clear Custom ESP", Callback = function() if st.cesp then callbacks.tgCEsp() end end})
-        
-        -- Settings Tab
-        SettingsTab:CreateSection("Keybinds (Type Key Name)")
-        local keyNames = {"SPEED_1_KEY", "SPEED_2_KEY", "LAG_SWITCH_KEY", "INVISIBILITY_KEY", "FULLBRIGHT_KEY", "ESP_CHAMS_KEY", "NOCLIP_KEY", "SPEEDOMETER_KEY", "ZOOM_KEY", "WARNING_KEY", "CUSTOM_ESP_KEY", "RESET_KEY"}
-        for _, k in ipairs(keyNames) do SettingsTab:CreateInput({Name = k:gsub("_", " "), CurrentValue = CFG[k].Name, PlaceholderText = "Enum.KeyCode", RemoveTextAfterFocusLost = false, Flag = "RF_"..k, Callback = function(Text) local success, result = pcall(function() return Enum.KeyCode[Text] end) if success and result then CFG[k] = result end end}) end
-        
-        SettingsTab:CreateSection("Configuration Values")
-        SettingsTab:CreateInput({Name = "Boosted Speed 1", CurrentValue = tostring(CFG.BOOSTED_SPEED_1), PlaceholderText = "21", RemoveTextAfterFocusLost = false, Flag = "RF_Bst1", Callback = function(Text) local n = tonumber(Text) if n then CFG.BOOSTED_SPEED_1 = n end end})
-        SettingsTab:CreateInput({Name = "Boosted Jump", CurrentValue = tostring(CFG.BOOSTED_JUMP), PlaceholderText = "60", RemoveTextAfterFocusLost = false, Flag = "RF_BstJmp", Callback = function(Text) local n = tonumber(Text) if n then CFG.BOOSTED_JUMP = n end end})
-        SettingsTab:CreateInput({Name = "Hitbox Size", CurrentValue = tostring(CFG.HITBOX_SIZE), PlaceholderText = "15", RemoveTextAfterFocusLost = false, Flag = "RF_HbSize", Callback = function(Text) local n = tonumber(Text) if n then CFG.HITBOX_SIZE = n end end})
-        SettingsTab:CreateInput({Name = "Warning Distance", CurrentValue = tostring(CFG.WARNING_DISTANCE), PlaceholderText = "100", RemoveTextAfterFocusLost = false, Flag = "RF_WrnDist", Callback = function(Text) local n = tonumber(Text) if n then CFG.WARNING_DISTANCE = n end end})
-        SettingsTab:CreateInput({Name = "Reset Cooldown", CurrentValue = tostring(CFG.RESET_COOLDOWN), PlaceholderText = "2", RemoveTextAfterFocusLost = false, Flag = "RF_RstCd", Callback = function(Text) local n = tonumber(Text) if n then CFG.RESET_COOLDOWN = n end end})
-        SettingsTab:CreateInput({Name = "Jitter Speed", CurrentValue = tostring(CFG.JITTER_SPEED), PlaceholderText = "1", RemoveTextAfterFocusLost = false, Flag = "RF_JitterSpd", Callback = function(Text) local n = tonumber(Text) if n then CFG.JITTER_SPEED = n end end})
-        SettingsTab:CreateInput({Name = "Jitter Duration", CurrentValue = tostring(CFG.JITTER_DURATION), PlaceholderText = "0.001", RemoveTextAfterFocusLost = false, Flag = "RF_JitterDur", Callback = function(Text) local n = tonumber(Text) if n then CFG.JITTER_DURATION = n end end})
-        SettingsTab:CreateInput({Name = "Lag Switch Speed", CurrentValue = tostring(CFG.LAG_SWITCH_SPEED), PlaceholderText = "16", RemoveTextAfterFocusLost = false, Flag = "RF_LagSpd", Callback = function(Text) local n = tonumber(Text) if n then CFG.LAG_SWITCH_SPEED = n end end})
-        
-        -- UI Switching
-        SettingsTab:CreateSection("UI Options")
-        SettingsTab:CreateButton({
-            Name = "Switch to Custom UI",
-            Callback = function()
-                callbacks.switchToCustomUI()
-            end
-        })
-        
-        return Window
+        -- Min/Max
+        bMin.MouseButton1Click:Connect(function() 
+            UI_API.minimize()
+            UI_API.sendNotif("Script minimized!", "Click the button at the top of your screen to maximize.", 5)
+        end)
+        bMax.MouseButton1Click:Connect(function() UI_API.maximize() end)
     end
+    
+    --[[ DRAG HANDLING FOR SPEEDOMETER ]]--
+    game:GetService("UserInputService").InputChanged:Connect(function(input)
+        if spdDragging and input == spdDragInput then
+            local delta = input.Position - spdDragStart
+            local newX = spdStartPos.X.Offset + delta.X
+            local newY = spdStartPos.Y.Offset + delta.Y
+            local viewport = workspace.CurrentCamera.ViewportSize
+            newX = math.clamp(newX, 0, math.max(0, viewport.X - 140))
+            newY = math.clamp(newY, 0, math.max(0, viewport.Y - 28))
+            spdFrame.Position = UDim2.new(0, newX, 0, newY)
+            spdLastPos = UDim2.new(0, newX, 0, newY)
+        end
+    end)
+
+    --[[ SCREEN CONSTRAINTS ]]--
+    task.defer(function()
+        local function constrainToScreen()
+            if not main.Visible then return end
+            local pos = main.Position
+            local size = main.AbsoluteSize
+            if size.X == 0 or size.Y == 0 then return end
+            local viewport = workspace.CurrentCamera.ViewportSize
+            local absX = pos.X.Scale * viewport.X + pos.X.Offset
+            local absY = pos.Y.Scale * viewport.Y + pos.Y.Offset
+            local clampedX = math.clamp(absX, 0, math.max(0, viewport.X - size.X))
+            local clampedY = math.clamp(absY, 0, math.max(0, viewport.Y - size.Y))
+            if math.abs(absX - clampedX) > 0.5 or math.abs(absY - clampedY) > 0.5 then
+                local newOffsetX = clampedX - pos.X.Scale * viewport.X
+                local newOffsetY = clampedY - pos.Y.Scale * viewport.Y
+                main.Position = UDim2.new(pos.X.Scale, newOffsetX, pos.Y.Scale, newOffsetY)
+            end
+        end
+        main:GetPropertyChangedSignal("Position"):Connect(constrainToScreen)
+        main:GetPropertyChangedSignal("AbsoluteSize"):Connect(constrainToScreen)
+        workspace.CurrentCamera:GetPropertyChangedSignal("ViewportSize"):Connect(constrainToScreen)
+        task.delay(0.5, constrainToScreen)
+    end)
 
     return {
-        gui=gui, inBox=inBox, bSpd1=bSpd1, bSpd2=bSpd2, bJmp=bJmp, bNc=bNc, bHb=bHb, bLag=bLag, bInv=bInv, bFb=bFb, bEsp=bEsp, bCesp=bCesp, bInst=bInst, bSpdo=bSpdo, bZm=bZm, bWrn=bWrn, bRst=bRst, bCls=bCls, bYes=bYes, bNo=bNo, bMin=bMin, bMax=bMax, bSrch=bSrch, bCnc=bCnc, bRayfield=bRayfield, logo=logo, btns=btns, 
-        API = UI_API,
-        -- Expose creation functions
-        createSpeedometer = UI_API.createSpeedometer,
-        createJitterFly = UI_API.createJitterFly,
-        loadRayfield = UI_API.loadRayfield
+        gui = gui,
+        main = main,
+        minFrm = minFrm,
+        inBox = inBox,
+        bSpd1 = bSpd1, bSpd2 = bSpd2, bJmp = bJmp, bNc = bNc, bHb = bHb,
+        bLag = bLag, bInv = bInv, bFb = bFb, bEsp = bEsp, bCesp = bCesp,
+        bInst = bInst, bSpdo = bSpdo, bZm = bZm, bWrn = bWrn, bRst = bRst,
+        bCls = bCls, bYes = bYes, bNo = bNo, bMin = bMin, bMax = bMax,
+        bSrch = bSrch, bCnc = bCnc, bRayfield = bRayfield, bJf = bJf,
+        logo = logo, btns = btns,
+        spdGui = spdGui, spdFrame = spdFrame, spdText = spdText,
+        jfUpGui = jfUpGui, jfUpFrame = jfUpFrame,
+        createSpeedometerUI = createSpeedometerUI,
+        createJitterUpUI = createJitterUpUI,
+        destroyJitterUI = destroyJitterUI,
+        loadRayfield = loadRayfield,
+        API = UI_API
     }
 end

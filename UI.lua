@@ -20,6 +20,11 @@ return function(plr, CFG)
     local isAnimating = false
     local lastPos = ud2(0.5,-60,0.5,-59)
 
+    -- Speedometer internal state
+    local spdUILastPos = nil
+    local spdDragging = false
+    local spdDragInput, spdDragStart, spdStartPos
+
     local function mk(c, p, pr) local i = Instance.new(c); for k,v in pairs(pr or {}) do i[k]=v end; if p then i.Parent=p end; return i end
     
     local function tw(o, i, p, w) 
@@ -90,8 +95,8 @@ return function(plr, CFG)
         local b=mk("TextButton", p, {Size=sz, Position=pos, Text=tx, BackgroundTransparency=1, TextColor3=c3(255,255,255), TextTransparency=1, Font=Enum.Font.GothamBold, TextSize=10, ZIndex=2})
         local bg=mk("Frame", b, {Name="Background", Size=ud2(1,0,1,0), BackgroundColor3=clr, BackgroundTransparency=1, BorderSizePixel=0, ZIndex=1})
         mk("UICorner", bg, {CornerRadius=UDim.new(0,4)}); mk("UIPadding", bg, {PaddingLeft=UDim.new(0,0)}); mk("UIGradient", bg, {Color=ColorSequence.new(clr,c3(15,15,15))})
-        local st=mk("UIStroke", bg, {Thickness=1, ApplyStrokeMode=Enum.ApplyStrokeMode.Border, Color=c3(255,255,255), Transparency=1})
-        local h,s,v=clr:ToHSV(); mk("UIGradient", st, {Color=ColorSequence.new(Color3.fromHSV(h,s*0.8,math.min(v*1.4,1)),c3(0,0,0))}); return b
+        local str=mk("UIStroke", bg, {Thickness=1, ApplyStrokeMode=Enum.ApplyStrokeMode.Border, Color=c3(255,255,255), Transparency=1})
+        local h,s,v=clr:ToHSV(); mk("UIGradient", str, {Color=ColorSequence.new(Color3.fromHSV(h,s*0.8,math.min(v*1.4,1)),c3(0,0,0))}); return b
     end
 
     if plr:WaitForChild("PlayerGui"):FindFirstChild("ToolsGUI") then plr.PlayerGui.ToolsGUI:Destroy() end
@@ -125,7 +130,7 @@ return function(plr, CFG)
         bx.FocusLost:Connect(function() local pv=pVal(CFG[k], bx.Text); CFG[k]=pv; bx.Text=toStr(pv) end) end
     cfLL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() cScrl.CanvasSize=ud2(0,0,0,cfLL.AbsoluteContentSize.Y+10) end)
     
-    -- NEW: Rayfield Switch Button (Added at end of config list)
+    -- NEW: Rayfield Switch Button
     bRayfield = crStylB(cScrl, ud2(0.92,0,0,20), ud2(0,0,0,0), "Switch to Rayfield", c3(142, 68, 173))
     bRayfield.LayoutOrder = 1000
     
@@ -143,7 +148,7 @@ return function(plr, CFG)
     stLbl=mk("TextLabel", main, {Size=ud2(1,-10,0,12), Position=ud2(0,5,1,-22), Text="Ready", BackgroundTransparency=1, TextColor3=CFG.SECONDARY_TEXT_COLOR, Font=Enum.Font.Gotham, TextSize=8, TextTransparency=1})
     sigLbl=mk("TextLabel", main, {Size=ud2(1,0,0,10), Position=ud2(0,0,1,-10), Text="The Script of Stuffs", BackgroundTransparency=1, TextColor3=CFG.SECONDARY_TEXT_COLOR, Font=Enum.Font.Gotham, TextSize=7, TextTransparency=1})
 
-    -- Robust Momentum-Aware Scroll Snapping
+    -- Robust Momentum-Aware Scroll Snapping from Script 1
     local lastScrollTimes = {}
     local snapDebounce = {}
 
@@ -193,32 +198,11 @@ return function(plr, CFG)
     local function unTrn(t) tw(t, tBncIn, {Size=ud2(0,0,0,0), Position=ud2(0.5,0,0.5,0)}, true); t.Visible=false; local cx=lastPos.X; main.Size, main.Position, main.Visible = ud2(0,0,0,22), ud2(cx.Scale,cx.Offset+60,lastPos.Y.Scale,lastPos.Y.Offset), true; tw(main, tSmth, {Size=ud2(0,120,0,22), Position=lastPos}, true); fdMnu(0, true); shwUi(true, 120, 118); setA(0) end
     
     local function tgBtns(a, d) for _,b in ipairs(btns) do tw(b, tFast, {TextTransparency=a}); local bg=b:FindFirstChild("Background"); if bg then tw(bg, tFast, {BackgroundTransparency=a}); local st=bg:FindFirstChildOfClass("UIStroke"); if st then tw(st, tFast, {Transparency=a}) end end; if d then task.wait(d) end end end
-    
-    local function tgCfg(a) 
-        for _,r in ipairs(cScrl:GetChildren()) do 
-            if r:IsA("Frame") then 
-                local l,bg=r:FindFirstChildOfClass("TextLabel"),r:FindFirstChild("Frame")
-                if l then tw(l,tFast,{TextTransparency=a}) end
-                if bg then 
-                    tw(bg,tFast,{BackgroundTransparency=a})
-                    local s,bx=bg:FindFirstChildOfClass("UIStroke"),bg:FindFirstChildOfClass("TextBox")
-                    if s then tw(s,tFast,{Transparency=a}) end
-                    if bx then tw(bx,tFast,{TextTransparency=a}) end
-                end
-            end 
-        end 
-        if bRayfield then
-            tw(bRayfield, tFast, {TextTransparency=a})
-            local bg = bRayfield:FindFirstChild("Background")
-            if bg then tw(bg, tFast, {BackgroundTransparency=a}) end
-            local st = bRayfield:FindFirstChildOfClass("UIStroke")
-            if st then tw(st, tFast, {Transparency=a}) end
-        end
-    end
-    
+    local function tgCfg(a) for _,r in ipairs(cScrl:GetChildren()) do if r:IsA("Frame") then local l,bg=r:FindFirstChildOfClass("TextLabel"),r:FindFirstChild("Frame"); if l then tw(l,tFast,{TextTransparency=a}) end; if bg then tw(bg,tFast,{BackgroundTransparency=a}); local s,bx=bg:FindFirstChildOfClass("UIStroke"),bg:FindFirstChildOfClass("TextBox"); if s then tw(s,tFast,{Transparency=a}) end; if bx then tw(bx,tFast,{TextTransparency=a}) end end end end end
     local function cnfEx(v) tw(cnfLbl,tFast,{TextTransparency=v}); tw(bYes,tFast,{TextTransparency=v}); tw(bNo,tFast,{TextTransparency=v}); tw(bYes.Background,tFast,{BackgroundTransparency=v}); tw(bNo.Background,tFast,{BackgroundTransparency=v}); tw(bYes.Background.UIStroke,tFast,{Transparency=v}); tw(bNo.Background.UIStroke,tFast,{Transparency=v==0 and 1 or 1}) end
     local function inEx(v) tw(inBox,tFast,{TextTransparency=v}); tw(bSrch,tFast,{TextTransparency=v}); tw(bCnc,tFast,{TextTransparency=v}); tw(bSrch.Background,tFast,{BackgroundTransparency=v}); tw(bCnc.Background,tFast,{BackgroundTransparency=v}); tw(bSrch.Background.UIStroke,tFast,{Transparency=v}); tw(bCnc.Background.UIStroke,tFast,{Transparency=1}) end
 
+    -- API Definition
     local UI_API = {}
 
     function UI_API.playAnim()
@@ -393,8 +377,300 @@ return function(plr, CFG)
 
     function UI_API.destroyGui() gui:Destroy() end
 
+    -- NEW: Speedometer UI Creation
+    function UI_API.createSpeedometer(st, updateDragCallback)
+        local spdGui, spdFrame, spdText
+        
+        local function create()
+            if spdGui then 
+                spdGui:Destroy() 
+                spdGui = nil
+            end
+            
+            spdGui = Instance.new("ScreenGui")
+            spdGui.Name = "TSOS_Speedometer"
+            spdGui.ResetOnSpawn = false
+            spdGui.IgnoreGuiInset = true
+            spdGui.DisplayOrder = 100000
+            spdGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+            spdGui.Parent = plr:WaitForChild("PlayerGui")
+            
+            spdFrame = Instance.new("TextButton")
+            spdFrame.Name = "SpeedFrame"
+            spdFrame.Size = ud2(0, 140, 0, 28)
+            
+            if spdUILastPos then
+                spdFrame.Position = spdUILastPos
+            else
+                spdFrame.Position = ud2(0.5, -70, 0, 8)
+            end
+            
+            spdFrame.BackgroundColor3 = CFG.BACKGROUND_COLOR
+            spdFrame.BackgroundTransparency = 0.15
+            spdFrame.BorderSizePixel = 0
+            spdFrame.Visible = st.spdo
+            spdFrame.ZIndex = 100000
+            spdFrame.Text = ""
+            spdFrame.AutoButtonColor = false
+            spdFrame.Parent = spdGui
+            
+            local corner = Instance.new("UICorner")
+            corner.CornerRadius = UDim.new(0, 6)
+            corner.Parent = spdFrame
+            
+            local stroke = Instance.new("UIStroke")
+            stroke.Color = CFG.ACCENT_COLOR
+            stroke.Thickness = 1
+            stroke.Transparency = 0.3
+            stroke.ZIndex = 100001
+            stroke.Parent = spdFrame
+            
+            local shadow = Instance.new("ImageLabel")
+            shadow.Name = "Shadow"
+            shadow.Size = ud2(1, 6, 1, 6)
+            shadow.Position = ud2(0, -3, 0, -3)
+            shadow.BackgroundTransparency = 1
+            shadow.Image = "rbxassetid://5587865193"
+            shadow.ImageColor3 = Color3.new(0, 0, 0)
+            shadow.ImageTransparency = 0.6
+            shadow.ScaleType = Enum.ScaleType.Slice
+            shadow.SliceCenter = Rect.new(10, 10, 118, 118)
+            shadow.ZIndex = 99999
+            shadow.Parent = spdFrame
+            
+            spdText = Instance.new("TextLabel")
+            spdText.Name = "SpeedText"
+            spdText.Size = ud2(1, 0, 1, 0)
+            spdText.BackgroundTransparency = 1
+            spdText.Text = "Speed: 0 studs/s"
+            spdText.TextColor3 = CFG.TEXT_COLOR
+            spdText.Font = Enum.Font.GothamBold
+            spdText.TextSize = 12
+            spdText.ZIndex = 100002
+            spdText.Parent = spdFrame
+            
+            spdFrame.InputBegan:Connect(function(input)
+                if (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then
+                    spdDragging = true
+                    spdDragStart = input.Position
+                    local viewport = workspace.CurrentCamera.ViewportSize
+                    local currentAbsX = spdFrame.Position.X.Scale * viewport.X + spdFrame.Position.X.Offset
+                    local currentAbsY = spdFrame.Position.Y.Scale * viewport.Y + spdFrame.Position.Y.Offset
+                    spdStartPos = ud2(0, currentAbsX, 0, currentAbsY)
+
+                    input.Changed:Connect(function()
+                        if input.UserInputState == Enum.UserInputState.End then
+                            spdDragging = false
+                        end
+                    end)
+                end
+            end)
+
+            spdFrame.InputChanged:Connect(function(input)
+                if (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+                    spdDragInput = input
+                end
+            end)
+        end
+        
+        create()
+        
+        return {
+            gui = spdGui,
+            frame = spdFrame,
+            text = spdText,
+            setDragPos = function(pos) spdUILastPos = pos end,
+            getDragPos = function() return spdUILastPos end,
+            isDragging = function() return spdDragging end,
+            getDragInput = function() return spdDragInput end,
+            setLastPos = function(pos) 
+                spdUILastPos = pos
+                if spdFrame then spdFrame.Position = pos end
+            end
+        }
+    end
+
+    -- NEW: Jitter Fly UI Creation
+    function UI_API.createJitterFly(st, onActivate)
+        local jfUpGui, jfUpFrame
+        
+        local function create()
+            if jfUpGui then
+                jfUpGui:Destroy()
+                jfUpGui = nil
+            end
+            
+            jfUpGui = Instance.new("ScreenGui")
+            jfUpGui.Name = "TSOS_JitterUp"
+            jfUpGui.ResetOnSpawn = false
+            jfUpGui.IgnoreGuiInset = true
+            jfUpGui.DisplayOrder = 999999999
+            jfUpGui.ZIndexBehavior = Enum.ZIndexBehavior.Global
+            jfUpGui.Parent = plr:WaitForChild("PlayerGui")
+            
+            jfUpFrame = Instance.new("TextButton")
+            jfUpFrame.Name = "JitterUpFrame"
+            jfUpFrame.Size = ud2(0, 120, 0, 50)
+            jfUpFrame.Position = ud2(1, -130, 0.5, -25)
+            jfUpFrame.BackgroundColor3 = c3(46, 204, 113)
+            jfUpFrame.BackgroundTransparency = 0.1
+            jfUpFrame.BorderSizePixel = 0
+            jfUpFrame.Visible = true
+            jfUpFrame.ZIndex = 10
+            jfUpFrame.Text = "UP"
+            jfUpFrame.TextColor3 = CFG.TEXT_COLOR
+            jfUpFrame.Font = Enum.Font.GothamBold
+            jfUpFrame.TextSize = 16
+            jfUpFrame.AutoButtonColor = false
+            jfUpFrame.Parent = jfUpGui
+            
+            local corner = Instance.new("UICorner")
+            corner.CornerRadius = UDim.new(0, 8)
+            corner.Parent = jfUpFrame
+            
+            local stroke = Instance.new("UIStroke")
+            stroke.Color = CFG.BORDER_COLOR
+            stroke.Thickness = 2
+            stroke.Parent = jfUpFrame
+            
+            jfUpFrame.MouseButton1Click:Connect(function()
+                jfUpFrame.BackgroundColor3 = c3(231, 76, 60)
+                task.delay(0.1, function()
+                    jfUpFrame.BackgroundColor3 = c3(46, 204, 113)
+                end)
+                
+                if onActivate then onActivate() end
+            end)
+        end
+        
+        if st.jf then
+            create()
+        end
+        
+        return {
+            gui = jfUpGui,
+            frame = jfUpFrame,
+            destroy = function() 
+                if jfUpGui then jfUpGui:Destroy() end
+                jfUpGui = nil
+            end,
+            recreate = create
+        }
+    end
+
+    -- NEW: Rayfield UI Creation
+    function UI_API.loadRayfield(st, callbacks)
+        local success, RayfieldLibrary = pcall(function()
+            return loadstring(game:HttpGet('https://raw.githubusercontent.com/SiriusSoftwareLtd/Rayfield/refs/heads/main/source.lua'))()
+        end)
+        
+        if not success or typeof(RayfieldLibrary) ~= "table" then
+            warn("Rayfield Load Failed: " .. tostring(RayfieldLibrary))
+            if callbacks.onLoadFail then callbacks.onLoadFail() end
+            return nil
+        end
+        
+        if not RayfieldLibrary.CreateWindow then
+            warn("Rayfield loaded but CreateWindow not found!")
+            if callbacks.onLoadFail then callbacks.onLoadFail() end
+            return nil
+        end
+        
+        local winSuccess, Window = pcall(function()
+            return RayfieldLibrary:CreateWindow({
+                Name = "TSOS - Rayfield Edition",
+                LoadingTitle = "The Script of Stuffs",
+                LoadingSubtitle = "Loading Rayfield Interface...",
+                ConfigurationSaving = {
+                    Enabled = false,
+                },
+                KeySystem = false,
+            })
+        end)
+        
+        if not winSuccess or not Window then
+            warn("Failed to create Rayfield window: " .. tostring(Window))
+            if callbacks.onLoadFail then callbacks.onLoadFail() end
+            return nil
+        end
+        
+        local MovementTab = Window:CreateTab("Movement", "bolt")
+        local CombatTab = Window:CreateTab("Combat", "crosshair")
+        local PlayerTab = Window:CreateTab("Player", "user")
+        local VisualsTab = Window:CreateTab("Visuals", "eye")
+        local SettingsTab = Window:CreateTab("Settings", "settings")
+        
+        -- Movement Tab
+        MovementTab:CreateSection("Speed Boosts")
+        MovementTab:CreateToggle({Name = "Speed Boost 1", CurrentValue = st.bst == "Boost1", Flag = "RF_Spd1", Callback = function(v) if v and st.bst ~= "Boost1" then callbacks.tgSpcBst("Boost1") elseif not v and st.bst == "Boost1" then callbacks.tgSpcBst("Boost1") end end})
+        MovementTab:CreateInput({Name = "Dynamic Speed Additive", CurrentValue = tostring(CFG.DYNAMIC_SPEED_ADDITIVE), PlaceholderText = "5", RemoveTextAfterFocusLost = false, Flag = "RF_DynVal", Callback = function(Text) local n = tonumber(Text) if n then CFG.DYNAMIC_SPEED_ADDITIVE = n end end})
+        MovementTab:CreateToggle({Name = "Speed Boost 2 (Dynamic)", CurrentValue = st.bst == "Boost2", Flag = "RF_Spd2", Callback = function(v) if v and st.bst ~= "Boost2" then callbacks.tgSpcBst("Boost2") elseif not v and st.bst == "Boost2" then callbacks.tgSpcBst("Boost2") end end})
+        
+        MovementTab:CreateSection("Movement Features")
+        MovementTab:CreateToggle({Name = "Jump Power Boost", CurrentValue = st.jmp, Flag = "RF_Jump", Callback = function(v) if v ~= st.jmp then callbacks.tgJmp() end end})
+        MovementTab:CreateToggle({Name = "Noclip", CurrentValue = st.nc, Flag = "RF_Noclip", Callback = function(v) if v ~= st.nc then callbacks.tgNc() end end})
+        MovementTab:CreateToggle({Name = "Speedometer", CurrentValue = st.spdo, Flag = "RF_Spdo", Callback = function(v) if v ~= st.spdo then callbacks.tgSpdo() end end})
+        
+        MovementTab:CreateSection("Jitter Fly")
+        MovementTab:CreateToggle({Name = "Jitter Fly Mode", CurrentValue = st.jf, Flag = "RF_JitterFly", Callback = function(v) if v ~= st.jf then callbacks.tgJf() end end})
+        MovementTab:CreateParagraph({Title = "Jitter Fly Info", Content = "External 'UP' button appears when enabled. Spam click for instant nanosecond micro-hops ("..tostring(CFG.JITTER_DURATION).."s duration). Speed: "..tostring(CFG.JITTER_SPEED)})
+        
+        -- Combat Tab
+        CombatTab:CreateSection("Combat Features")
+        CombatTab:CreateDropdown({Name = "Hitbox Expander", Options = {"Off", "On (No ESP)", "On (With ESP)"}, CurrentOption = st.hb == 0 and "Off" or (st.hb == 1 and "On (No ESP)" or "On (With ESP)"), MultipleOptions = false, Flag = "RF_Hitbox", Callback = function(opt) local s = type(opt) == "table" and opt[1] or opt; local t = (s=="Off" and 0 or (s=="On (No ESP)" and 1 or 2)); while st.hb ~= t do callbacks.tgHb() task.wait(0.01) end end})
+        CombatTab:CreateToggle({Name = "Lag Switch", CurrentValue = st.lag, Flag = "RF_Lag", Callback = function(v) if v ~= st.lag then callbacks.tgLag() end end})
+        
+        -- Player Tab
+        PlayerTab:CreateSection("Character Mods")
+        PlayerTab:CreateToggle({Name = "Invisibility", CurrentValue = st.inv, Flag = "RF_Invis", Callback = function(v) if v ~= st.inv then callbacks.tgInv() end end})
+        PlayerTab:CreateToggle({Name = "Fullbright", CurrentValue = st.fb, Flag = "RF_Fb", Callback = function(v) if v ~= st.fb then callbacks.tgFb() end end})
+        PlayerTab:CreateToggle({Name = "Instant Interact", CurrentValue = st.inst, Flag = "RF_Inst", Callback = function(v) if v ~= st.inst then callbacks.tgInst() end end})
+        PlayerTab:CreateToggle({Name = "Unlimited Zoom", CurrentValue = st.zm, Flag = "RF_Zoom", Callback = function(v) if v ~= st.zm then callbacks.tgZm() end end})
+        PlayerTab:CreateToggle({Name = "Proximity Warning", CurrentValue = st.wrn, Flag = "RF_Warn", Callback = function(v) if v ~= st.wrn then callbacks.tgWrn() end end})
+        PlayerTab:CreateButton({Name = "Set Spawn Point", Callback = function() callbacks.tgSpn() end})
+        
+        -- Visuals Tab
+        VisualsTab:CreateSection("ESP Controls")
+        VisualsTab:CreateDropdown({Name = "ESP Mode", Options = {"Off", "All Players", "Enemy Off-Screen", "Names & Distance", "Chams Only"}, CurrentOption = st.esp == 0 and "Off" or (st.esp == 1 and "All Players" or st.esp == 2 and "Enemy Off-Screen" or st.esp == 3 and "Names & Distance" or "Chams Only"), MultipleOptions = false, Flag = "RF_EspMode", Callback = function(opt) local s = type(opt) == "table" and opt[1] or opt; local t = (s=="Off" and 0 or (s=="All Players" and 1 or (s=="Enemy Off-Screen" and 2 or (s=="Names & Distance" and 3 or 4)))); callbacks.setEspState(t) end})
+        
+        VisualsTab:CreateSection("Custom ESP")
+        local cespInput = VisualsTab:CreateInput({Name = "Search Keyword", CurrentValue = st.kw, PlaceholderText = "player, crate, etc", RemoveTextAfterFocusLost = false, Flag = "RF_CespKw", Callback = function() end})
+        VisualsTab:CreateButton({Name = "Activate Custom ESP", Callback = function() if st.cesp then callbacks.tgCEsp() end; callbacks.runCEsp(cespInput.CurrentValue or "") end})
+        VisualsTab:CreateButton({Name = "Clear Custom ESP", Callback = function() if st.cesp then callbacks.tgCEsp() end end})
+        
+        -- Settings Tab
+        SettingsTab:CreateSection("Keybinds (Type Key Name)")
+        local keyNames = {"SPEED_1_KEY", "SPEED_2_KEY", "LAG_SWITCH_KEY", "INVISIBILITY_KEY", "FULLBRIGHT_KEY", "ESP_CHAMS_KEY", "NOCLIP_KEY", "SPEEDOMETER_KEY", "ZOOM_KEY", "WARNING_KEY", "CUSTOM_ESP_KEY", "RESET_KEY"}
+        for _, k in ipairs(keyNames) do SettingsTab:CreateInput({Name = k:gsub("_", " "), CurrentValue = CFG[k].Name, PlaceholderText = "Enum.KeyCode", RemoveTextAfterFocusLost = false, Flag = "RF_"..k, Callback = function(Text) local success, result = pcall(function() return Enum.KeyCode[Text] end) if success and result then CFG[k] = result end end}) end
+        
+        SettingsTab:CreateSection("Configuration Values")
+        SettingsTab:CreateInput({Name = "Boosted Speed 1", CurrentValue = tostring(CFG.BOOSTED_SPEED_1), PlaceholderText = "21", RemoveTextAfterFocusLost = false, Flag = "RF_Bst1", Callback = function(Text) local n = tonumber(Text) if n then CFG.BOOSTED_SPEED_1 = n end end})
+        SettingsTab:CreateInput({Name = "Boosted Jump", CurrentValue = tostring(CFG.BOOSTED_JUMP), PlaceholderText = "60", RemoveTextAfterFocusLost = false, Flag = "RF_BstJmp", Callback = function(Text) local n = tonumber(Text) if n then CFG.BOOSTED_JUMP = n end end})
+        SettingsTab:CreateInput({Name = "Hitbox Size", CurrentValue = tostring(CFG.HITBOX_SIZE), PlaceholderText = "15", RemoveTextAfterFocusLost = false, Flag = "RF_HbSize", Callback = function(Text) local n = tonumber(Text) if n then CFG.HITBOX_SIZE = n end end})
+        SettingsTab:CreateInput({Name = "Warning Distance", CurrentValue = tostring(CFG.WARNING_DISTANCE), PlaceholderText = "100", RemoveTextAfterFocusLost = false, Flag = "RF_WrnDist", Callback = function(Text) local n = tonumber(Text) if n then CFG.WARNING_DISTANCE = n end end})
+        SettingsTab:CreateInput({Name = "Reset Cooldown", CurrentValue = tostring(CFG.RESET_COOLDOWN), PlaceholderText = "2", RemoveTextAfterFocusLost = false, Flag = "RF_RstCd", Callback = function(Text) local n = tonumber(Text) if n then CFG.RESET_COOLDOWN = n end end})
+        SettingsTab:CreateInput({Name = "Jitter Speed", CurrentValue = tostring(CFG.JITTER_SPEED), PlaceholderText = "1", RemoveTextAfterFocusLost = false, Flag = "RF_JitterSpd", Callback = function(Text) local n = tonumber(Text) if n then CFG.JITTER_SPEED = n end end})
+        SettingsTab:CreateInput({Name = "Jitter Duration", CurrentValue = tostring(CFG.JITTER_DURATION), PlaceholderText = "0.001", RemoveTextAfterFocusLost = false, Flag = "RF_JitterDur", Callback = function(Text) local n = tonumber(Text) if n then CFG.JITTER_DURATION = n end end})
+        SettingsTab:CreateInput({Name = "Lag Switch Speed", CurrentValue = tostring(CFG.LAG_SWITCH_SPEED), PlaceholderText = "16", RemoveTextAfterFocusLost = false, Flag = "RF_LagSpd", Callback = function(Text) local n = tonumber(Text) if n then CFG.LAG_SWITCH_SPEED = n end end})
+        
+        -- UI Switching
+        SettingsTab:CreateSection("UI Options")
+        SettingsTab:CreateButton({
+            Name = "Switch to Custom UI",
+            Callback = function()
+                callbacks.switchToCustomUI()
+            end
+        })
+        
+        return Window
+    end
+
     return {
-        gui=gui, inBox=inBox, bSpd1=bSpd1, bSpd2=bSpd2, bJmp=bJmp, bNc=bNc, bHb=bHb, bLag=bLag, bInv=bInv, bFb=bFb, bEsp=bEsp, bCesp=bCesp, bInst=bInst, bSpdo=bSpdo, bZm=bZm, bWrn=bWrn, bRst=bRst, bJf=bJf, bCls=bCls, bYes=bYes, bNo=bNo, bMin=bMin, bMax=bMax, bSrch=bSrch, bCnc=bCnc, bRayfield=bRayfield, logo=logo, btns=btns,
-        API = UI_API
+        gui=gui, inBox=inBox, bSpd1=bSpd1, bSpd2=bSpd2, bJmp=bJmp, bNc=bNc, bHb=bHb, bLag=bLag, bInv=bInv, bFb=bFb, bEsp=bEsp, bCesp=bCesp, bInst=bInst, bSpdo=bSpdo, bZm=bZm, bWrn=bWrn, bRst=bRst, bCls=bCls, bYes=bYes, bNo=bNo, bMin=bMin, bMax=bMax, bSrch=bSrch, bCnc=bCnc, bRayfield=bRayfield, logo=logo, btns=btns, 
+        API = UI_API,
+        -- Expose creation functions
+        createSpeedometer = UI_API.createSpeedometer,
+        createJitterFly = UI_API.createJitterFly,
+        loadRayfield = UI_API.loadRayfield
     }
 end

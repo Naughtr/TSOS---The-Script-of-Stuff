@@ -125,7 +125,6 @@ return function(plr, CFG)
         bx.FocusLost:Connect(function() local pv=pVal(CFG[k], bx.Text); CFG[k]=pv; bx.Text=toStr(pv) end) end
     cfLL:GetPropertyChangedSignal("AbsoluteContentSize"):Connect(function() cScrl.CanvasSize=ud2(0,0,0,cfLL.AbsoluteContentSize.Y+10) end)
     
-    -- NEW: Rayfield Switch Button (Added at end of config list)
     bRayfield = crStylB(cScrl, ud2(0.92,0,0,20), ud2(0,0,0,0), "Switch to Rayfield", c3(142, 68, 173))
     bRayfield.LayoutOrder = 1000
     
@@ -137,7 +136,7 @@ return function(plr, CFG)
         local u=function() if isAnimating then return end tw(b, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size=ud2(0.92,0,0,20)}) end; b.MouseButton1Up:Connect(u); b.MouseLeave:Connect(u); table.insert(btns, b); return b
     end
 
-    -- All 17 buttons including new Potato Graphics button
+    -- All 17 buttons
     bSpd1,bSpd2,bJmp,bNc,bHb,bLag,bInv,bFb,bEsp,bCesp,bInst,bSpdo,bZm,bWrn,bRst,bJf,bNd = sB("S1","SPEED BOOST 1"),sB("S2","DYNAMIC SPD"),sB("JP","JUMP POWER"),sB("NC","NOCLIP"),sB("HB","HITBOX OFF"),sB("LS","LAG SWITCH"),sB("IV","INVISIBLE"),sB("FB","FULLBRIGHT"),sB("ESP","ESP CHAMS"),sB("CESP","CUSTOM ESP"),sB("IN","INSTANT INTERACT"),sB("SPD","SPEEDOMETER"),sB("ZM","UNLIMITED ZOOM"),sB("WRN","PROXIMITY WARN"),sB("RST","SET SPAWN"),sB("JF","JITTER FLY"),sB("ND","POTATO GRAPHICS")
     spdoLbl=mk("TextLabel", main, {Size=ud2(1,-10,0,12), Position=ud2(0,5,1,-34), Text="Speed: 0 studs/s", BackgroundTransparency=1, TextColor3=c3(255,255,255), Font=Enum.Font.GothamBold, TextSize=8, TextTransparency=1, Visible=false})
     stLbl=mk("TextLabel", main, {Size=ud2(1,-10,0,12), Position=ud2(0,5,1,-22), Text="Ready", BackgroundTransparency=1, TextColor3=CFG.SECONDARY_TEXT_COLOR, Font=Enum.Font.Gotham, TextSize=8, TextTransparency=1})
@@ -313,7 +312,7 @@ return function(plr, CFG)
     function UI_API.sendNotif(title, text, dur) SG:SetCore("SendNotification", {Title=title, Text=text, Duration=dur}) end
     function UI_API.rndBClr() rndBClr() end
 
-    -- NEW: Disable potato button (gray it out permanently)
+    -- MODIFIED: Added SurfaceAppearance destruction support
     function UI_API.disablePotatoButton()
         if not bNd then return end
         bNd.Text = "POTATO APPLIED"
@@ -330,14 +329,12 @@ return function(plr, CFG)
                 if sg then sg.Enabled = false end
             end
         end
-        -- Remove from btns table so it doesn't get color changes
         for i, btn in ipairs(btns) do
             if btn == bNd then
                 table.remove(btns, i)
                 break
             end
         end
-        -- Store in bOrigClr as gray so it stays gray
         bOrigClr[bNd] = c3(80, 80, 80)
     end
 

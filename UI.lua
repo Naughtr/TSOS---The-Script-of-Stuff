@@ -103,13 +103,13 @@ return function(plr, CFG)
     -- Original unload confirmation
     cnfFrm = mk("Frame", gui, {Name="ConfirmFrame", Size=ud2(0,0,0,0), Position=ud2(0.5,0,0.5,0), BackgroundColor3=CFG.BACKGROUND_COLOR, BorderSizePixel=0, Visible=false, ClipsDescendants=true}); mk("UICorner", cnfFrm, {CornerRadius=UDim.new(0,8)}); mk("UIStroke", cnfFrm, {Color=CFG.BORDER_COLOR, Thickness=1}); cnfLbl=mk("TextLabel", cnfFrm, {Size=ud2(1,-10,0,40), Position=ud2(0,5,0,5), BackgroundTransparency=1, Text="Do you want to unload the script?", TextColor3=CFG.TEXT_COLOR, Font=Enum.Font.GothamBold, TextSize=10, TextWrapped=true, TextTransparency=1}); bYes=crStylB(cnfFrm, ud2(0.4,0,0,20), ud2(0.05,0,0.65,0), "YES", c3(231,76,60)); bNo=crStylB(cnfFrm, ud2(0.4,0,0,20), ud2(0.55,0,0.65,0), "NO", CFG.ACCENT_COLOR)
     
-    -- NEW: FPS Booster confirmation frame
+    -- NEW: Potato Graphics confirmation frame
     fpsCnfFrm = mk("Frame", gui, {Name="FPSConfirmFrame", Size=ud2(0,0,0,0), Position=ud2(0.5,0,0.5,0), BackgroundColor3=CFG.BACKGROUND_COLOR, BorderSizePixel=0, Visible=false, ClipsDescendants=true}); 
     mk("UICorner", fpsCnfFrm, {CornerRadius=UDim.new(0,8)}); 
     mk("UIStroke", fpsCnfFrm, {Color=CFG.BORDER_COLOR, Thickness=1}); 
-    fpsCnfLbl=mk("TextLabel", fpsCnfFrm, {Size=ud2(1,-15,0,60), Position=ud2(0,8,0,5), BackgroundTransparency=1, Text="⚠️ WARNING: IRREVERSIBLE\n\nThis will DESTROY all decals, textures, meshes, and effects permanently to boost FPS by 20+. Graphics will become plain plastic/gray. This cannot be undone.\n\nContinue?", TextColor3=c3(255,80,80), Font=Enum.Font.GothamBold, TextSize=9, TextWrapped=true, TextTransparency=1}); 
-    bFpsYes=crStylB(fpsCnfFrm, ud2(0.4,0,0,22), ud2(0.05,0,0.72,0), "YES - DESTROY GRAPHICS", c3(231,76,60)); 
-    bFpsNo=crStylB(fpsCnfFrm, ud2(0.4,0,0,22), ud2(0.55,0,0.72,0), "CANCEL", c3(46,204,113))
+    fpsCnfLbl=mk("TextLabel", fpsCnfFrm, {Size=ud2(1,-15,0,70), Position=ud2(0,8,0,5), BackgroundTransparency=1, Text="⚠️ WARNING: IRREVERSIBLE\n\nThis will DESTROY all decals, textures, lighting, and effects permanently to boost FPS by 20+. Graphics will become plain plastic/gray. This cannot be undone.\n\nContinue?", TextColor3=c3(255,80,80), Font=Enum.Font.GothamBold, TextSize=9, TextWrapped=true, TextTransparency=1}); 
+    bFpsYes=crStylB(fpsCnfFrm, ud2(0.4,0,0,22), ud2(0.05,0,0.78,0), "YES - DESTROY", c3(231,76,60)); 
+    bFpsNo=crStylB(fpsCnfFrm, ud2(0.4,0,0,22), ud2(0.55,0,0.78,0), "CANCEL", c3(46,204,113))
     
     inpFrm = mk("Frame", gui, {Name="InputFrame", Size=ud2(0,0,0,0), Position=ud2(0.5,0,0.5,0), BackgroundColor3=CFG.BACKGROUND_COLOR, BorderSizePixel=0, Visible=false, ClipsDescendants=true}); mk("UICorner", inpFrm, {CornerRadius=UDim.new(0,8)}); mk("UIStroke", inpFrm, {Color=CFG.BORDER_COLOR, Thickness=1}); inBox=mk("TextBox", inpFrm, {Size=ud2(1,-20,0,25), Position=ud2(0,10,0,10), BackgroundColor3=CFG.ACCENT_COLOR, TextColor3=CFG.TEXT_COLOR, Font=Enum.Font.Gotham, TextSize=10, PlaceholderText="Enter search keyword...", PlaceholderColor3=CFG.SECONDARY_TEXT_COLOR, Text="", TextTransparency=1}); mk("UICorner", inBox, {CornerRadius=UDim.new(0,4)}); mk("UIStroke", inBox, {Color=CFG.BORDER_COLOR, Thickness=1}); bSrch=crStylB(inpFrm, ud2(0.4,0,0,20), ud2(0.05,0,0.60,0), "SEARCH", c3(46,204,113)); bCnc=crStylB(inpFrm, ud2(0.4,0,0,20), ud2(0.55,0,0.60,0), "CANCEL", c3(231,76,60))
     tTabBg = mk("Frame", main, {Name="TitleTabBg", Size=ud2(1,0,0,22), BackgroundColor3=CFG.TAB_COLOR, BorderSizePixel=0}); mk("UICorner", tTabBg, {CornerRadius=UDim.new(0,10)}); mk("Frame", tTabBg, {Name="BottomBorder", Size=ud2(1,0,0,1), Position=ud2(0,0,1,-1), BackgroundColor3=CFG.BORDER_COLOR, BorderSizePixel=0, ZIndex=3}); local tTab=mk("Frame", tTabBg, {Name="TitleTab", Size=ud2(1,0,1,0), BackgroundTransparency=1, BorderSizePixel=0})
@@ -128,7 +128,7 @@ return function(plr, CFG)
     end)
 
     cScrl = mk("ScrollingFrame", main, {Name="ConfigFrame", Size=ud2(1,-16,0,52), Position=ud2(0,8,0,36), BackgroundColor3=CFG.BACKGROUND_COLOR, ScrollBarThickness=2, CanvasSize=ud2(0,0,0,0), Visible=false, ScrollingDirection=Enum.ScrollingDirection.Y, ElasticBehavior=Enum.ElasticBehavior.Always}); local cfLL=mk("UIListLayout", cScrl, {Padding=UDim.new(0,4), HorizontalAlignment=Enum.HorizontalAlignment.Center}); mk("UIPadding", cScrl, {PaddingTop=UDim.new(0,4), PaddingBottom=UDim.new(0,4)})
-    local sNm={SPEED_1_KEY="SPD 1",SPEED_2_KEY="SPD 2",LAG_SWITCH_KEY="LAG KEY",INVISIBILITY_KEY="INVIS",FULLBRIGHT_KEY="F-BRIGHT",ESP_CHAMS_KEY="ESP KEY",RESET_KEY="RESET",NOCLIP_KEY="NOCLIP",SPEEDOMETER_KEY="SPEEDO",ZOOM_KEY="ZOOM",WARNING_KEY="WARN",CUSTOM_ESP_KEY="C-ESP",DECAL_KEY="NO DECALS",BOOSTED_SPEED_1="BST SPD 1",DYNAMIC_SPEED_ADDITIVE="DYN ADD",DEFAULT_JUMP="DEF JUMP",BOOSTED_JUMP="BST JUMP",HITBOX_SIZE="HB SIZE",MAX_ZOOM="MAX ZM",MIN_ZOOM="MIN ZM",WARNING_DISTANCE="WARN DIST",INVISIBILITY_POSITION="INVIS POS",RESET_COOLDOWN="RST CD",BACKGROUND_COLOR="BG CLR",ACCENT_COLOR="ACC CLR",TAB_COLOR="TAB CLR",BORDER_COLOR="BRDR CLR",TEXT_COLOR="TXT CLR",SECONDARY_TEXT_COLOR="SEC TXT",ESP_MAX_DISTANCE="ESP MAX",ESP_NEAR_DISTANCE="ESP NEAR",JITTER_FLY_SPEED="JF SPEED"}
+    local sNm={SPEED_1_KEY="SPD 1",SPEED_2_KEY="SPD 2",LAG_SWITCH_KEY="LAG KEY",INVISIBILITY_KEY="INVIS",FULLBRIGHT_KEY="F-BRIGHT",ESP_CHAMS_KEY="ESP KEY",RESET_KEY="RESET",NOCLIP_KEY="NOCLIP",SPEEDOMETER_KEY="SPEEDO",ZOOM_KEY="ZOOM",WARNING_KEY="WARN",CUSTOM_ESP_KEY="C-ESP",DECAL_KEY="POTATO GFX",BOOSTED_SPEED_1="BST SPD 1",DYNAMIC_SPEED_ADDITIVE="DYN ADD",DEFAULT_JUMP="DEF JUMP",BOOSTED_JUMP="BST JUMP",HITBOX_SIZE="HB SIZE",MAX_ZOOM="MAX ZM",MIN_ZOOM="MIN ZM",WARNING_DISTANCE="WARN DIST",INVISIBILITY_POSITION="INVIS POS",RESET_COOLDOWN="RST CD",BACKGROUND_COLOR="BG CLR",ACCENT_COLOR="ACC CLR",TAB_COLOR="TAB CLR",BORDER_COLOR="BRDR CLR",TEXT_COLOR="TXT CLR",SECONDARY_TEXT_COLOR="SEC TXT",ESP_MAX_DISTANCE="ESP MAX",ESP_NEAR_DISTANCE="ESP NEAR",JITTER_FLY_SPEED="JF SPEED"}
     local pK, oK = {"BOOSTED_SPEED_1","DYNAMIC_SPEED_ADDITIVE","DEFAULT_JUMP","BOOSTED_JUMP","HITBOX_SIZE","MAX_ZOOM","MIN_ZOOM","WARNING_DISTANCE","JITTER_FLY_SPEED"}, {}; for k,_ in pairs(CFG) do if not table.find(pK,k) then table.insert(oK,k) end end; table.sort(oK); local sk={}; for _,k in ipairs(pK) do table.insert(sk,k) end; for _,k in ipairs(oK) do table.insert(sk,k) end
     for _, k in ipairs(sk) do local r=mk("Frame", cScrl, {Size=ud2(0.92,0,0,20), BackgroundTransparency=1}); local l=mk("TextLabel", r, {Size=ud2(0.5,0,1,0), BackgroundTransparency=1, Text=sNm[k] or k, TextColor3=CFG.TEXT_COLOR, TextXAlignment=Enum.TextXAlignment.Center, Font=Enum.Font.Gotham, TextSize=7, TextTransparency=1, Active=true})
         local showTt=function() ttLbl.Text=k; ttFrm.AnchorPoint=Vector2.new(0.5,1); ttFrm.Position=ud2(0,tTabBg.AbsolutePosition.X+(tTabBg.AbsoluteSize.X/2),0,tTabBg.AbsolutePosition.Y-5); ttFrm.Visible=true end; l.MouseEnter:Connect(showTt); l.MouseLeave:Connect(function() ttFrm.Visible=false end); l.InputBegan:Connect(function(ip) if ip.UserInputType==Enum.UserInputType.Touch then showTt() end end); l.InputEnded:Connect(function(ip) if ip.UserInputType==Enum.UserInputType.Touch then ttFrm.Visible=false end end)
@@ -148,8 +148,8 @@ return function(plr, CFG)
         local u=function() if isAnimating then return end tw(b, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.Out), {Size=ud2(0.92,0,0,20)}) end; b.MouseButton1Up:Connect(u); b.MouseLeave:Connect(u); table.insert(btns, b); return b
     end
 
-    -- All 17 buttons including new No Decals button
-    bSpd1,bSpd2,bJmp,bNc,bHb,bLag,bInv,bFb,bEsp,bCesp,bInst,bSpdo,bZm,bWrn,bRst,bJf,bNd = sB("S1","SPEED BOOST 1"),sB("S2","DYNAMIC SPD"),sB("JP","JUMP POWER"),sB("NC","NOCLIP"),sB("HB","HITBOX OFF"),sB("LS","LAG SWITCH"),sB("IV","INVISIBLE"),sB("FB","FULLBRIGHT"),sB("ESP","ESP CHAMS"),sB("CESP","CUSTOM ESP"),sB("IN","INSTANT INTERACT"),sB("SPD","SPEEDOMETER"),sB("ZM","UNLIMITED ZOOM"),sB("WRN","PROXIMITY WARN"),sB("RST","SET SPAWN"),sB("JF","JITTER FLY"),sB("ND","FPS BOOST")
+    -- All 17 buttons including new Potato Graphics button
+    bSpd1,bSpd2,bJmp,bNc,bHb,bLag,bInv,bFb,bEsp,bCesp,bInst,bSpdo,bZm,bWrn,bRst,bJf,bNd = sB("S1","SPEED BOOST 1"),sB("S2","DYNAMIC SPD"),sB("JP","JUMP POWER"),sB("NC","NOCLIP"),sB("HB","HITBOX OFF"),sB("LS","LAG SWITCH"),sB("IV","INVISIBLE"),sB("FB","FULLBRIGHT"),sB("ESP","ESP CHAMS"),sB("CESP","CUSTOM ESP"),sB("IN","INSTANT INTERACT"),sB("SPD","SPEEDOMETER"),sB("ZM","UNLIMITED ZOOM"),sB("WRN","PROXIMITY WARN"),sB("RST","SET SPAWN"),sB("JF","JITTER FLY"),sB("ND","POTATO GRAPHICS")
     spdoLbl=mk("TextLabel", main, {Size=ud2(1,-10,0,12), Position=ud2(0,5,1,-34), Text="Speed: 0 studs/s", BackgroundTransparency=1, TextColor3=c3(255,255,255), Font=Enum.Font.GothamBold, TextSize=8, TextTransparency=1, Visible=false})
     stLbl=mk("TextLabel", main, {Size=ud2(1,-10,0,12), Position=ud2(0,5,1,-22), Text="Ready", BackgroundTransparency=1, TextColor3=CFG.SECONDARY_TEXT_COLOR, Font=Enum.Font.Gotham, TextSize=8, TextTransparency=1})
     sigLbl=mk("TextLabel", main, {Size=ud2(1,0,0,10), Position=ud2(0,0,1,-10), Text="The Script of Stuffs", BackgroundTransparency=1, TextColor3=CFG.SECONDARY_TEXT_COLOR, Font=Enum.Font.Gotham, TextSize=7, TextTransparency=1})
@@ -304,43 +304,46 @@ return function(plr, CFG)
         cnfEx(1); task.wait(0.2); tw(cnfFrm, tBncIn, {Size=ud2(0,0,0,0), Position=ud2(0.5,0,0.5,0)}, true) 
     end
     
-    -- NEW: FPS Booster confirmation functions
+    -- NEW: Potato Graphics confirmation functions
+    local function fpsCnfEx(v) 
+        tw(fpsCnfLbl,tFast,{TextTransparency=v}); 
+        tw(bFpsYes,tFast,{TextTransparency=v}); 
+        tw(bFpsNo,tFast,{TextTransparency=v}); 
+        tw(bFpsYes.Background,tFast,{BackgroundTransparency=v}); 
+        tw(bFpsNo.Background,tFast,{BackgroundTransparency=v}); 
+        tw(bFpsYes.Background.UIStroke,tFast,{Transparency=v}); 
+        tw(bFpsNo.Background.UIStroke,tFast,{Transparency=v})
+    end
+    
     function UI_API.showFpsConfirm() 
         if isAnimating then return end
         lastPos = main.Position
         bMin.Visible, bCls.Visible = false, false 
-        trnMnu(scrl, nil, fpsCnfFrm, ud2(0,220,0,110))
-        -- Animate the warning text and buttons
-        tw(fpsCnfLbl, tFast, {TextTransparency=0})
-        tw(bFpsYes, tFast, {TextTransparency=0})
-        tw(bFpsNo, tFast, {TextTransparency=0})
-        tw(bFpsYes.Background, tFast, {BackgroundTransparency=0})
-        tw(bFpsNo.Background, tFast, {BackgroundTransparency=0})
-        tw(bFpsYes.Background.UIStroke, tFast, {Transparency=0})
-        tw(bFpsNo.Background.UIStroke, tFast, {Transparency=0})
+        trnMnu(scrl, nil, fpsCnfFrm, ud2(0,240,0,110))
+        fpsCnfEx(0)
     end
     
     function UI_API.hideFpsConfirm() 
         if isAnimating then return end
-        -- Animate out
-        tw(fpsCnfLbl, tFast, {TextTransparency=1})
-        tw(bFpsYes, tFast, {TextTransparency=1})
-        tw(bFpsNo, tFast, {TextTransparency=1})
-        tw(bFpsYes.Background, tFast, {BackgroundTransparency=1})
-        tw(bFpsNo.Background, tFast, {BackgroundTransparency=1})
-        tw(bFpsYes.Background.UIStroke, tFast, {Transparency=1})
-        tw(bFpsNo.Background.UIStroke, tFast, {Transparency=1})
+        fpsCnfEx(1)
         task.wait(0.2)
         unTrn(fpsCnfFrm)
         bMin.Visible, bCls.Visible = true, true 
     end
     
-    -- NEW: Disable FPS button after applied (irreversible)
-    function UI_API.setFpsButtonApplied()
-        bNd.Text = "FPS BOOSTED ✓"
-        stBAct(bNd, true) -- Keep it lit up to show it's active
-        bNd.Active = false -- Disable further clicks
-        -- Remove from btns table so it doesn't get toggled off by other means
+    -- NEW: Disable Potato Graphics button (gray it out)
+    function UI_API.disablePotatoButton()
+        bNd.Text = "POTATO APPLIED"
+        bNd.Active = false
+        local bg = bNd:FindFirstChild("Background")
+        if bg then
+            bg.BackgroundColor3 = c3(80, 80, 80) -- Gray color
+            local gr = bg:FindFirstChildOfClass("UIGradient")
+            if gr then gr.Enabled = false end
+            local st = bg:FindFirstChildOfClass("UIStroke")
+            if st then st.Color = c3(60, 60, 60) end
+        end
+        -- Remove from btns table so it doesn't get color changes
         for i, btn in ipairs(btns) do
             if btn == bNd then
                 table.remove(btns, i)
@@ -450,7 +453,7 @@ return function(plr, CFG)
     function UI_API.destroyGui() gui:Destroy() end
 
     return {
-        gui=gui, inBox=inBox, bSpd1=bSpd1, bSpd2=bSpd2, bJmp=bJmp, bNc=bNc, bHb=bHb, bLag=bLag, bInv=bInv, bFb=bFb, bEsp=bEsp, bCesp=bCesp, bInst=bInst, bSpdo=bSpdo, bZm=bZm, bWrn=bWrn, bRst=bRst, bJf=bJf, bNd=bNd, bFpsYes=bFpsYes, bFpsNo=bFpsNo, bCls=bCls, bYes=bYes, bNo=bNo, bMin=bMin, bMax=bMax, bSrch=bSrch, bCnc=bCnc, bRayfield=bRayfield, logo=logo, btns=btns,
+        gui=gui, inBox=inBox, bSpd1=bSpd1, bSpd2=bSpd2, bJmp=bJmp, bNc=bNc, bHb=bHb, bLag=bLag, bInv=bInv, bFb=bFb, bEsp=bEsp, bCesp=bCesp, bInst=bInst, bSpdo=bSpdo, bZm=bZm, bWrn=bWrn, bRst=bRst, bJf=bJf, bNd=bNd, bCls=bCls, bYes=bYes, bNo=bNo, bFpsYes=bFpsYes, bFpsNo=bFpsNo, bMin=bMin, bMax=bMax, bSrch=bSrch, bCnc=bCnc, bRayfield=bRayfield, logo=logo, btns=btns,
         API = UI_API
     }
 end
